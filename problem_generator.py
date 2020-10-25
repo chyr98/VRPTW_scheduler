@@ -12,13 +12,13 @@ def generate_problem(name: str, num_vehicles: int, x_limit: int, y_limit: int,
     """
     Generates a VRPTW Problem with the given parameters.
 
-    Precondition: lb_distance <= ub_distance <= 2 * lb_distance (to maintain the triangle inequality)
-
-    :param num_nodes: number of customers in the problem
+    :param name: the name of the problem
     :param num_vehicles: number of vehicles that can provide services
-    :param lb_distance: the lower bound of the distance from any location to another
-    :param ub_distance: the upper bound of the distance from any location to another
-    :param tw_variance: the factor indicates how wide can the time window be in terms of multiple of ub_distance
+    :param x_limit: the max value of the x axis in the euclidian space
+    :param y_limit: the max value of the y axis in the euclidian space
+    :param num_nodes: number of customers in the problem
+    :param tw_limit_ratio: the factor indicates how wide can the time window be in terms of multiple of the length of the diagnol of the euclidian space
+    :param seed: random seed
     :return: a well defined VRPTW Problem.
     """
     assert num_vehicles > 0 and x_limit >= 0 and y_limit >= 0 and num_nodes > 0
@@ -34,6 +34,7 @@ def generate_problem(name: str, num_vehicles: int, x_limit: int, y_limit: int,
     # of tasks to match those routes.
     indices = list(range(1, num_nodes))
     random.shuffle(indices)
+    # randomly divide [0, #customers - 1] to #vehicles adjacent ranges
     k = num_vehicles - 1
     break_points = sorted(random.choices(list(range(num_nodes - 1)), k=k))
     break_points.append(num_nodes - 1)

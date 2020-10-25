@@ -5,6 +5,12 @@ import VRPTW_util as util
 
 
 def load_solution(filename: str) -> List[List[int]]:
+    """
+    Load a solution from a file
+
+    :param filename: the filename to load
+    :return: the solution routes
+    """
     with open(filename) as f:
         f.readline()
         num_vehicles = int(f.readline().rstrip())

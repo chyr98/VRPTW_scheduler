@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 class Node:
     """
     A Node stands for a customer in this problem setting, which has an index that
-    makes enumeration easier, x and y coordinates, and a time window for possible service time.
+    makes enumeration easier, x and y coordinates, and a time window [a, b] for possible service time.
     """
 
     def __init__(self, index: int, x: int, y: int, a: float = 0.0, b: float = 0.0) -> __class__:
@@ -20,18 +20,31 @@ class Node:
         """
         Update the available time windows for the customer
 
-        :param lower_bound: The earliest service time for customer
-        :param upper_bound: The latest service time for customer
+        :param a: The earliest service time for customer
+        :param b: The latest service time for customer
         :return: None
         """
         self.a = a
         self.b = b
 
     def distance(self, other: __class__) -> float:
+        """
+        The distance to the other node
+
+        :param other: the other node
+        :return: the distance
+        """
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
 
-def dump_routes(problem_name: str, routes: List[List[int]], filename: str):
+def dump_routes(problem_name: str, routes: List[List[int]], filename: str) -> None:
+    """
+    Dump routes to the file
+
+    :param problem_name: the name of the problem
+    :param routes: routes
+    :param filename: the filename to dump
+    """
     with open(filename, 'w') as f:
         f.write('# {}\n'.format(problem_name))
         f.write(str(len(routes)) + '\n')
@@ -45,7 +58,6 @@ class VRPTWInstance:
     specific time window restricts the service time.
     There is a fleet of vehicles to provide services and we cannot change the amount of
     vehicles in this setting.
-    The map shows the distance between every customers and the depot.
 
     self.nodes[0] stands for the depot
     """
@@ -56,9 +68,22 @@ class VRPTWInstance:
         self.name = name
 
     def distance(self, i: int, j: int) -> float:
+        """
+        The distance between two nodes
+
+        :param a: a node
+        :param b: a node
+        :return: the distance
+        """
         return self.nodes[i].distance(self.nodes[j])
 
     def get_time(self, routes: List[List[int]]) -> Optional[float, List[Tuple[int, float]]]:
+        """
+        The time steps when vehicles start at nodes
+
+        :param routes: routes
+        :return: None if the routes is invalid and the solution cost and the list describes which vehicle visits which nodes when otherwise.
+        """
         node_to_vehicle_time = [(-1, -1.0)] * len(self.nodes)
         node_to_vehicle_time[0] = (-1, 0.0)
         cost = 0.0
@@ -92,6 +117,12 @@ class VRPTWInstance:
         return cost, node_to_vehicle_time
 
     def dump(self, filename: str) -> None:
+        """
+        Dump the problem to file
+
+        :param filename: the filename to dump
+        :return: None
+        """
         with open(filename, 'w') as f:
             f.write('# {}\n'.format(self.name))
             f.write(str(self.num_vehicles) + '\n')
@@ -102,6 +133,12 @@ class VRPTWInstance:
 
     @classmethod
     def load(cls, filename: str) -> __class__:
+        """
+        Load a problem from a file
+
+        :param filename: the filename to load
+        :return: a problem instance
+        """
         with open(filename) as f:
             name = f.readline().rstrip()[2:]
             num_vehicles = int(f.readline().rstrip())
