@@ -43,6 +43,7 @@ python3 problem_generator.py \
   - each line describes one route
   - routes are listed in the order of the indices of the vehicles
   - customers are listed in the order of the visits in each line
+  - the depot is omitted
 
 ## Solution Validator
 
