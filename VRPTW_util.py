@@ -85,6 +85,10 @@ class VRPTWInstance:
 
             cost += self.distance(prev, 0)
 
+        # a node is not visited
+        if any([t[0] == -1 for t in node_to_vehicle_time[1:]]):
+            return None
+
         return cost, node_to_vehicle_time
 
     def dump(self, filename: str) -> None:

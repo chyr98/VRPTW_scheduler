@@ -34,15 +34,14 @@ def generate_problem(name: str, num_vehicles: int, x_limit: int, y_limit: int,
     # of tasks to match those routes.
     indices = list(range(1, num_nodes))
     random.shuffle(indices)
+    k = num_vehicles - 1
+    break_points = sorted(random.choices(list(range(num_nodes - 1)), k=k))
+    break_points.append(num_nodes - 1)
     routes = []
     start = 0
 
     for i in range(num_vehicles):
-        end = num_nodes
-
-        if i < num_vehicles - 1:
-            end = random.randint(start, num_nodes)
-
+        end = break_points[i]
         routes.append(indices[start:end])
         start = end
 
@@ -64,12 +63,12 @@ def generate_problem(name: str, num_vehicles: int, x_limit: int, y_limit: int,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--name', '-n', type=str, default='VRPTW instance')
     parser.add_argument('--num-vehicles', '-v', type=int, default=2)
     parser.add_argument('--x-limit', '-x', type=int, default=10)
     parser.add_argument('--y-limit', '-y', type=int, default=10)
     parser.add_argument('--num-customers', '-c', type=int, default=5)
     parser.add_argument('--tw-limit-ratio', '-t', type=float, default=0.3)
-    parser.add_argument('--name', type=str, default='VRPTW instance')
     parser.add_argument('--output', '-o', type=str, required=True)
     parser.add_argument('--solution', '-s', type=str)
     parser.add_argument('--seed', type=int, default=1234)
