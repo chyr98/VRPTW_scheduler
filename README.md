@@ -21,8 +21,8 @@ python3 problem_generator.py \
 - `--y-limit/-y`: the max value of the y axis (defualt: 10)
 - `--num-costomers/-c`: the number of customers including the depot (default :5)
 - `--tw-limit-ratio/-t`: the larger this value is the broader the time windows are (defualt: 0.4)
--- `--output/-o`: the filename to write the problem (required)
--- `--solution/-s`: the filename to write a solution used for the problem generation (optional)
+- `--output/-o`: the filename to write the problem (required)
+- `--solution/-s`: the filename to write a solution used for the problem generation (optional)
 
 ## MPP Generator
 Generate MPP by swapping two customers in the original routes.
@@ -42,11 +42,11 @@ python3 mpp_generator.py \
   --seed 1234
 ```
 
--- `--num-perturbations/-m`: the number of swaps
--- `--original-output/-o`: the filename to write the original problem (required)
--- `--perturbated-output/-p`: the filename to write the perturbated problem (required)
--- `--solution/-s`: the filename to write an original solution used for the orgiginal problem generation (optional)
--- `--pertrubated-solution/-q`: the filename to write a solution used for the perturbated problem generation (optional)
+- `--num-perturbations/-m`: the number of swaps
+- `--original-output/-o`: the filename to write the original problem (required)
+- `--perturbated-output/-p`: the filename to write the perturbated problem (required)
+- `--solution/-s`: the filename to write an original solution used for the orgiginal problem generation (optional)
+- `--pertrubated-solution/-q`: the filename to write a solution used for the perturbated problem generation (optional)
 
 ### Problem Format
 
