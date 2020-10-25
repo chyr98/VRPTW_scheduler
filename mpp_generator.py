@@ -36,6 +36,7 @@ def generate_mpp(name: str, num_vehicles: int, x_limit: int, y_limit: int,
     tw_limit = int(math.sqrt(x_limit ** 2 + y_limit ** 2) * tw_limit_ratio)
     indices = list(range(1, num_nodes))
     combinations = list(itertools.combinations(indices, 2))
+    perturbated_routes = []
     is_feasible = True
 
     while is_feasible:
@@ -65,7 +66,13 @@ def generate_mpp(name: str, num_vehicles: int, x_limit: int, y_limit: int,
                     b = math.ceil(t) + random.randint(0, tw_limit)
                     perturbated_problem.nodes[cur].update_time_window(a, b)
                 else:
-                    t += perturbated_problem.distance(prev, cur)
+                    distance = perturbated_problem.distance(prev, cur)
+                    t = max(perturbated_problem.nodes[cur].a, t + distance)
+
+                    if t > perturbated_problem.nodes[cur].b:
+                        a = max(math.floor(t) - random.randint(0, tw_limit), 0)
+                        b = math.ceil(t) + random.randint(0, tw_limit)
+                        perturbated_problem.nodes[cur].update_time_window(a, b)
 
                 route.append(cur)
                 prev = cur
