@@ -1,6 +1,6 @@
 # MPP in VRPTW
 
-## Problem Generator
+## VRPTW Generator
 
 ```bash
 python3 problem_generator.py \
@@ -21,8 +21,32 @@ python3 problem_generator.py \
 - `--y-limit/-y`: the max value of the y axis (defualt: 10)
 - `--num-costomers/-c`: the number of customers including the depot (default :5)
 - `--tw-limit-ratio/-t`: the larger this value is the broader the time windows are (defualt: 0.4)
--- `--output`: the filename to write the problem (required)
--- `--solution`: the filename to write a solution used for the problem generation (optional)
+-- `--output/-o`: the filename to write the problem (required)
+-- `--solution/-s`: the filename to write a solution used for the problem generation (optional)
+
+## MPP Generator
+Generate MPP by swapping two customers in the original routes.
+
+```bash
+python3 mpp_generator.py \
+  --name problem1
+  --num-vehicles 2 \
+  --x-limit 10 \
+  --y-limit 10 \
+  --num-customers 5
+  --tw-limit-ratio 0.3
+  --num-perturbations 3
+  --original-output problem1.txt
+  --perturbated-output perturbated_problem1.txt
+  --solution solution_problem1.txt
+  --seed 1234
+```
+
+-- `--num-perturbations/-m`: the number of swaps
+-- `--original-output/-o`: the filename to write the original problem (required)
+-- `--perturbated-output/-p`: the filename to write the perturbated problem (required)
+-- `--solution/-s`: the filename to write an original solution used for the orgiginal problem generation (optional)
+-- `--pertrubated-solution/-q`: the filename to write a solution used for the perturbated problem generation (optional)
 
 ### Problem Format
 

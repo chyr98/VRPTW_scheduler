@@ -129,7 +129,8 @@ class VRPTWInstance:
             f.write(str(len(self.nodes)) + '\n')
 
             for node in self.nodes:
-                f.write('{} {} {} {}\n'.format(node.x, node.y, node.a, node.b))
+                f.write('{} {} {} {}\n'.format(
+                    node.x, node.y, int(node.a), int(node.b)))
 
     @classmethod
     def load(cls, filename: str) -> __class__:
