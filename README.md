@@ -9,7 +9,7 @@ python3 problem_generator.py \
   --x-limit 10 \
   --y-limit 10 \
   --num-customers 5
-  --tw-limit-ratio 0.3
+  --tw-limit 3
   --output problem1.txt
   --solution solution_problem1.txt
   --seed 1234
@@ -17,15 +17,18 @@ python3 problem_generator.py \
 
 - `--name/-n`: the name of problem (default: 'VRPTW instance')
 - `--num-vehicles/-v`: the number of vehicles (default: 2)
-- `--x-limit/-x`: the max value of the x axis (default: 10)
-- `--y-limit/-y`: the max value of the y axis (defualt: 10)
+- `--x-limit/-x`: the maxumum value of the x axis (default: 10)
+- `--y-limit/-y`: the maxumum value of the y axis (defualt: 10)
 - `--num-costomers/-c`: the number of customers including the depot (default :5)
-- `--tw-limit-ratio/-t`: the larger this value is the broader the time windows are (defualt: 0.4)
-- `--output/-o`: the filename to write the problem (required)
-- `--solution/-s`: the filename to write a solution used for the problem generation (optional)
+- `--tw-limit/-t`:  The half of the maximum width of time windows (defualt: 3)
+- `--output/-o`: the path to save the generated problem (required)
+- `--solution/-s`: The path to save the solution used for generating the problem (optional)
 
 ## MPP Generator
 Generate MPP by swapping two customers in the original routes.
+If `--original-problem` and `--original-solution` exist, they will be used.
+Otherwise, they will be generated accodring to the same options as `problem_generator.py`.
+Note that `--tw-limit` should be set appropriately even if an existing problem and solution are used.
 
 ```bash
 python3 mpp_generator.py \
@@ -34,7 +37,7 @@ python3 mpp_generator.py \
   --x-limit 10 \
   --y-limit 10 \
   --num-customers 5
-  --tw-limit-ratio 0.3
+  --tw-limit 3
   --num-perturbations 3
   --original-output problem1.txt
   --perturbated-output perturbated_problem1.txt
@@ -42,11 +45,12 @@ python3 mpp_generator.py \
   --seed 1234
 ```
 
-- `--num-perturbations/-m`: the number of swaps
-- `--original-output/-o`: the filename to write the original problem (required)
-- `--perturbated-output/-p`: the filename to write the perturbated problem (required)
-- `--solution/-s`: the filename to write an original solution used for the orgiginal problem generation (optional)
-- `--pertrubated-solution/-q`: the filename to write a solution used for the perturbated problem generation (optional)
+- `--tw-limit/-t`:  The half of the maximum width of time windows (defualt: 3)
+- `--num-perturbations/-m`: the number of swaps (default: 3)
+- `--original-problem/-o`: the path of the original problem (required)
+- `--perturbated-problem/-p`: the path to save the perturbated problem (required)
+- `--solution/-s`: The path of the original solution (required)
+- `--pertrubated-solution/-q`: the path to save the solution used for generating the perturbated problem (optional)
 
 ### Problem Format
 

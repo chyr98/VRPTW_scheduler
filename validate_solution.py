@@ -4,24 +4,6 @@ from typing import List
 import VRPTW_util as util
 
 
-def load_solution(filename: str) -> List[List[int]]:
-    """
-    Load a solution from a file
-
-    :param filename: the filename to load
-    :return: the solution routes
-    """
-    with open(filename) as f:
-        f.readline()
-        num_vehicles = int(f.readline().rstrip())
-        routes = []
-
-        for _ in range(num_vehicles):
-            routes.append([int(c) for c in f.readline().split()])
-
-    return routes
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--problem', '-p', type=str, required=True)
@@ -29,7 +11,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     problem = util.VRPTWInstance.load(args.problem)
-    routes = load_solution(args.solution)
+    routes = util.load_solution(args.solution)
     result = problem.get_time(routes)
 
     if result is None:

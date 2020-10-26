@@ -155,3 +155,21 @@ class VRPTWInstance:
                 nodes.append(Node(i, x, y, a, b))
 
         return cls(name, num_vehicles, nodes)
+
+
+def load_solution(filename: str) -> List[List[int]]:
+    """
+    Load a solution from a file
+
+    :param filename: the filename to load
+    :return: the solution routes
+    """
+    with open(filename) as f:
+        f.readline()
+        num_vehicles = int(f.readline().rstrip())
+        routes = []
+
+        for _ in range(num_vehicles):
+            routes.append([int(c) for c in f.readline().split()])
+
+    return routes

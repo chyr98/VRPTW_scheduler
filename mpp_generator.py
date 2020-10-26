@@ -2,38 +2,27 @@ import argparse
 import copy
 import itertools
 import math
+import os
 import random
+from typing import List
 
 import VRPTW_util as util
 import problem_generator
 
 
-def generate_mpp(name: str, num_vehicles: int, x_limit: int, y_limit: int,
-                 num_nodes: int, tw_limit_ratio: float, num_perturbation: int,
-                 seed: int = 1234) -> util.VRPTWInstance:
+def generate_mpp(original_problem: util.VRPTWInstance,
+                 original_routes: List[List[int]], tw_limit: int,
+                 num_perturbations: int) -> util.VRPTWInstance:
     """
     Generates an MPP in VRPTW Problem with the given parameters.
 
-    :param name: the name of the problem
-    :param num_vehicles: number of vehicles that can provide services
-    :param x_limit: the max value of the x axis in the euclidian space
-    :param y_limit: the max value of the y axis in the euclidian space
-    :param num_nodes: number of customers in the problem
-    :param tw_limit_ratio: the factor indicates how wide can the time window be in terms of multiple of the length of the diagnol of the euclidian space
-    :param num_perturbation: the number of swaps
-    :param seed: random seed
+    :param original_problem: the original VRPTW instance
+    :param original_routes: a solution for the original instance
+    :param tw_limit: the half of maximum width of the time windows
+    :param num_perturbations: the number of swaps
     :return: a well defined VRPTW Problem.
     """
-    assert num_vehicles > 0 and x_limit >= 0 and y_limit >= 0 and num_nodes > 0
-    assert (x_limit + 1) * (y_limit + 1) >= num_nodes
-
-    random.seed(seed)
-
-    original_name = 'original ' + name
-    original_problem, original_routes = problem_generator.generate_problem(
-        original_name, num_vehicles, x_limit, y_limit, num_nodes, tw_limit_ratio, seed=seed)
-
-    tw_limit = int(math.sqrt(x_limit ** 2 + y_limit ** 2) * tw_limit_ratio)
+    num_nodes = len(original_problem.nodes)
     indices = list(range(1, num_nodes))
     combinations = list(itertools.combinations(indices, 2))
     perturbated_routes = []
@@ -41,7 +30,7 @@ def generate_mpp(name: str, num_vehicles: int, x_limit: int, y_limit: int,
 
     while is_feasible:
         # swap customers in the routes
-        perturbations = random.sample(combinations, num_perturbation)
+        perturbations = random.sample(combinations, num_perturbations)
         perturbation_dict = {i: i for i in range(1, num_nodes)}
 
         for p in perturbations:
@@ -50,7 +39,7 @@ def generate_mpp(name: str, num_vehicles: int, x_limit: int, y_limit: int,
             perturbation_dict[p[1]] = tmp
 
         perturbated_problem = copy.deepcopy(original_problem)
-        perturbated_problem.name = 'perturbated ' + name
+        perturbated_problem.name = 'perturbated ' + original_problem.name
         perturbated_routes = []
 
         for r in original_routes:
@@ -81,41 +70,69 @@ def generate_mpp(name: str, num_vehicles: int, x_limit: int, y_limit: int,
 
         is_feasible = perturbated_problem.get_time(original_routes) is not None
 
-    return original_problem, original_routes, perturbated_problem, perturbated_routes
+    return perturbated_problem, perturbated_routes
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', '-n', type=str, default='VRPTW instance')
-    parser.add_argument('--num-vehicles', '-v', type=int, default=2)
-    parser.add_argument('--x-limit', '-x', type=int, default=10)
-    parser.add_argument('--y-limit', '-y', type=int, default=10)
-    parser.add_argument('--num-customers', '-c', type=int, default=5)
-    parser.add_argument('--tw-limit-ratio', '-t', type=float, default=0.3)
-    parser.add_argument('--num-perturbation', '-m', type=int, default=3)
-    parser.add_argument('--original-problem', '-o', type=str, required=True)
-    parser.add_argument('--perturbated-problem', '-p', type=str, required=True)
-    parser.add_argument('--solution', '-s', type=str)
-    parser.add_argument('--perturbated-solution', '-q', type=str)
-    parser.add_argument('--seed', type=int, default=1234)
+    parser.add_argument('--name', '-n', type=str, default='VRPTW instance',
+                        help='The name of the problem. This is needed only when generating the original problem.')
+    parser.add_argument('--num-vehicles', '-v', type=int, default=2,
+                        help='The number of vehicles. This is needed only when generating the original problem.')
+    parser.add_argument('--x-limit', '-x', type=int, default=10,
+                        help='The maixmum value of x-axis. This is needed only when generating the original problem.')
+    parser.add_argument('--y-limit', '-y', type=int, default=10,
+                        help='The maixmum value of y-axis. This is needed only when generating the original problem.')
+    parser.add_argument('--num-customers', '-c', type=int, default=5,
+                        help='The number of customers. This is needed only when generating the original problem.')
+    parser.add_argument('--tw-limit', '-t', type=int, default=4,
+                        help='The half of the maximum width of time windows.')
+    parser.add_argument('--num-perturbations', '-m', type=int, default=3,
+                        help='The number of perturbations.')
+    parser.add_argument('--original-problem', '-o', type=str, required=True,
+                        help='The path of the original problem. It will be generated if it or the original solution does not exist.')
+    parser.add_argument('--perturbated-problem', '-p', type=str, required=True,
+                        help='The number of swaps.')
+    parser.add_argument('--solution', '-s', type=str, required=True,
+                        help='The path of the original solution. It will be generated if it or the original problem does not exist.')
+    parser.add_argument('--perturbated-solution', '-q', type=str,
+                        help='The path to save the solution used for generating the perturbated problem. It is not saved if not specified.')
+    parser.add_argument('--seed', type=int, default=1234,
+                        help='random seed')
     args = parser.parse_args()
 
-    name = args.name
-    num_vehicles = args.num_vehicles
-    num_customers = args.num_customers
-    x_limit = args.x_limit
-    y_limit = args.y_limit
-    tw_limit_ratio = args.tw_limit_ratio
-    num_perturbation = args.num_perturbation
-    seed = args.seed
-    problem1, routes1, problem2, routes2 = generate_mpp(
-        name, num_vehicles, x_limit, y_limit, num_customers, tw_limit_ratio,
-        num_perturbation, seed=seed)
-    problem1.dump(args.original_problem)
+    random.seed(args.seed)
+
+    problem1 = None
+    routes1 = None
+
+    if args.original_problem is not None \
+            and args.solution is not None \
+            and os.path.exists(args.original_problem) \
+            and os.path.exists(args.solution):
+        print(
+            'using an existing problem and solution as the original problem and solution...')
+        problem1 = util.VRPTWInstance.load(args.original_problem)
+        routes1 = util.load_solution(args.solution)
+    else:
+        print('generating new problem and solution as the original problem and solution...')
+        problem1, routes1 = problem_generator.generate_problem(
+            args.name, args.num_vehicles, args.x_limit, args.y_limit,
+            args.num_customers, args.tw_limit)
+
+        print('saving the original problem...')
+        problem1.dump(args.original_problem)
+
+        if args.solution is not None:
+            print('saving a solution for the original problem...')
+            util.dump_routes(problem1.name, routes1, args.solution)
+
+    print('generating a perturbated problem...')
+    problem2, routes2 = generate_mpp(
+        problem1, routes1, args.tw_limit, args.num_perturbations)
+    print('saving the perturbated problem...')
     problem2.dump(args.perturbated_problem)
 
-    if args.solution is not None:
-        util.dump_routes(problem1.name, routes1, args.solution)
-
     if args.perturbated_solution is not None:
+        print('saving a solution for the perturbated problem...')
         util.dump_routes(problem2.name, routes2, args.perturbated_solution)
