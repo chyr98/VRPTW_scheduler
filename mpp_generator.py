@@ -11,13 +11,14 @@ import problem_generator
 
 
 def generate_mpp(original_problem: util.VRPTWInstance,
-                 original_routes: List[List[int]], tw_limit: int,
-                 num_perturbations: int) -> util.VRPTWInstance:
+                 original_routes: List[List[int]], perturbated_name: str,
+                 tw_limit: int, num_perturbations: int) -> util.VRPTWInstance:
     """
     Generates an MPP in VRPTW Problem with the given parameters.
 
     :param original_problem: the original VRPTW instance
     :param original_routes: a solution for the original instance
+    :param perturbated_name: the name of the perturbated problem
     :param tw_limit: the half of maximum width of the time windows
     :param num_perturbations: the number of swaps
     :return: a well defined VRPTW Problem.
@@ -39,7 +40,7 @@ def generate_mpp(original_problem: util.VRPTWInstance,
             perturbation_dict[p[1]] = tmp
 
         perturbated_problem = copy.deepcopy(original_problem)
-        perturbated_problem.name = 'perturbated ' + original_problem.name
+        perturbated_problem.name = perturbated_name
         perturbated_routes = []
 
         for r in original_routes:
@@ -128,8 +129,9 @@ if __name__ == '__main__':
             util.dump_routes(problem1.name, routes1, args.solution)
 
     print('generating a perturbated problem...')
+    perturbated_name = 'perturbated ' + problem1.name
     problem2, routes2 = generate_mpp(
-        problem1, routes1, args.tw_limit, args.num_perturbations)
+        problem1, routes1, perturbated_name, args.tw_limit, args.num_perturbations)
     print('saving the perturbated problem...')
     problem2.dump(args.perturbated_problem)
 
