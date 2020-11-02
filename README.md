@@ -58,7 +58,7 @@ python3 mpp_generator.py \
 # problem1
 2
 5
-1 6 0.0 0.0
+1 6 0 0
 6 6 5 8
 9 9 15 19
 9 3 5 12
