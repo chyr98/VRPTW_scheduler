@@ -33,8 +33,13 @@ def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbated_problem: VRP
     model = gp.Model("MainBS")
 
     # Variables
+
+    # shape of (k, p, i, j) p=nodes-1, i,j=nodes+1, indicates vehicle k travel from i to j in pth travel
+    # take in account of an additional variable to stands for idling after travel
     service_indicators = []
+    # shape of (k, p), stands for the time when vehicle k leaves pth customer
     service_time = []
+
     for k in range(vehicles):
 
         level1 = []
@@ -43,10 +48,10 @@ def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbated_problem: VRP
         for p in range(nodes-1):
 
             level2 = []
-            for i in range(nodes):
+            for i in range(nodes+1):
 
                 level3 = []
-                for j in range(nodes):
+                for j in range(nodes+1):
                     level3.append(model.addVar(vtype=GRB.BINARY, name="I^%g_%g,%g,%g" % (k, i, j, p)))
 
                 level2.append(level3)
@@ -57,10 +62,10 @@ def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbated_problem: VRP
         service_indicators.append(level1)
         service_time.append(vehicle_service_time)
 
-    service_indicators = np.array(service_indicators)   # shape of (k, p, i, j)
-    service_time = np.array(service_time)   # shape of (k, p)
+    service_indicators = np.array(service_indicators)
+    service_time = np.array(service_time)
 
-    distance_map = [[] for _ in range(nodes)]
+    distance_map = [[] for _ in range(nodes+1)]
     time_window = [[], []]
     for i in range(nodes):
         time_window[0].append(problem.nodes[i].a)
@@ -68,19 +73,32 @@ def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbated_problem: VRP
 
         for j in range(nodes):
             distance_map[i].append(problem.distance(i, j))
+        # distance for idle index
+        distance_map[i].append(0)
+
+    distance_map[-1] = [0] * (nodes+1)
+    # time window for the idle index
+    time_window[0].append(min(time_window[0]))
+    time_window[1].append(max(time_window[1]))
+
     distance_map = np.array(distance_map)  # shape of (i, j)
     time_window = np.array(time_window)  # shape of (2, j)
 
     # Constraints
 
     # Vehicles have to start from node 0
-    model.addConstr(gp.quicksum(service_indicators[:, 0, list(range(1, nodes)), :].flatten()) == 0, "Start_positionC")
+    model.addConstr(gp.quicksum(service_indicators[:, 0, list(range(1, nodes+1)), :].flatten()) == 0, "Start_positionC")
+    # idle index cannot travel to other location
+    model.addConstr(gp.quicksum(service_indicators[:, :, -1, :-1].flatten()) == 0, "Stay_idle_con")
+
     for k in range(vehicles):
-        model.addConstr(service_time[k, 0] == 0, "starting_time_%g" % k)
 
         for p in range(nodes-1):
             # Constraints that make sure each vehicle travels on one arc at each time
             model.addConstr(gp.quicksum(service_indicators[k, p, :, :].flatten()) <= 1, "binaryC^%g_%g" % (k, p))
+
+            # Make sure Vehicles don't travel back to the location, except the idle index
+            model.addConstr(gp.quicksum((service_indicators[k, p].diagonal())[:-1]) == 0, "backLoopC^%g_%g" % (k, p))
 
             # Timewindow Constraints
             model.addConstr(gp.quicksum((service_indicators[k, p, :, :] * time_window[0]).flatten()) <= service_time[k, p],
@@ -89,7 +107,7 @@ def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbated_problem: VRP
                             "ub_twC^%g_%g" % (k, p))
 
             if p == 0:
-                # Travel time constraints
+                # Travel time constraints, start time for each vehicle is 0
                 model.addConstr(gp.quicksum((service_indicators[k, p, :, :] * distance_map).flatten())
                                 <= service_time[k, p], "timeC^%g_%g" % (k, p))
             else:
@@ -101,9 +119,9 @@ def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbated_problem: VRP
                 model.addConstr(gp.quicksum(service_indicators[k, p, :, :].flatten())
                                 <= gp.quicksum(service_indicators[k, p-1, :, :].flatten()), "continuous_route^%g_%g" % (k, p))
 
-                for i in range(nodes):
-                    for j in range(nodes):
-                        indices = list(range(nodes))
+                for i in range(nodes+1):
+                    for j in range(nodes+1):
+                        indices = list(range(nodes+1))
                         indices.remove(j)
 
                         for var in service_indicators[k, p, indices, :].flatten():
@@ -116,7 +134,7 @@ def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbated_problem: VRP
     model.setObjective(gp.quicksum(service_time[:, -1]), GRB.MINIMIZE)
     model.optimize()
 
-    indicator_v = np.array([v.x for v in service_indicators.flatten()]).reshape(vehicles, nodes-1, nodes, nodes)
+    indicator_v = np.array([v.x for v in service_indicators.flatten()]).reshape(vehicles, nodes-1, nodes+1, nodes+1)
     service_time_v = np.array([v.x for v in service_time.flatten()]).reshape(vehicles, nodes-1)
 
     print(time_window)
@@ -127,8 +145,13 @@ def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbated_problem: VRP
 if __name__ == '__main__':
     file_name = "problem1.txt"
     problem = VRPTW_util.VRPTWInstance.load(file_name)
+    vehicles, nodes = problem.num_vehicles, len(problem.nodes)
 
     opt_sol, indicators, times = backtrack_search(problem, problem)
     print(opt_sol)
-    print(indicators)
+    for k in range(vehicles):
+        print("Vehicle %g:" % k)
+        for p in range(nodes-1):
+            index = np.argmax(indicators[k][p])
+            print(index // (nodes+1), index % (nodes+1))
     print(times)
