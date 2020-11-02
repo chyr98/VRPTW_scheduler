@@ -64,7 +64,24 @@ python3 mpp_generator.py \
 9 3 5 12
 8 9 11 16
 ```
+- the first line is problem name
+- the second line is the number of vehicles
+- the third line is the number of customers
+- the subsequenting lines describe customers
+  - each line describes one customer (the first line is the depot)
+  - the first column is the x-coordinate
+  - the second column is the y-coordinate
+  - the third column is the ready time
+  - the fourth column is the due time
 
+### Solution Format
+
+```
+# prolem1
+2
+1 2
+3 4
+```
 - the first line is problem name
 - the second line is the number of vehicles
 - the subsequenting lines describe routes
