@@ -41,13 +41,13 @@ for v in NUM_VEHICLES:
                             continue
 
                         perturbated_name = '{} perturbated {}'.format(j, name)
-                        problem2, route2 = mpp_generator.generate_mpp(
+                        problem2, routes2 = mpp_generator.generate_mpp(
                             problem1, routes1, perturbated_name, tw_limit, j)
                         perturbated_filename = 'perturbated{}_v{}_c{}_tw{}_xy{}_{}.txt'.format(
                             j, v, c, tw_limit, x_y_limit, i)
                         problem2.dump(
                             os.path.join('benchmarks', perturbated_filename))
-                        perturbated_solution_filename = 'perturbated_solution_v{}_c{}_tw{}_xy{}_{}.txt'.format(
-                            v, c, tw_limit, x_y_limit, i)
+                        perturbated_solution_filename = 'perturbated{}_solution_v{}_c{}_tw{}_xy{}_{}.txt'.format(
+                            j, v, c, tw_limit, x_y_limit, i)
                         util.dump_routes(
-                            name, routes1, os.path.join('benchmarks', perturbated_solution_filename))
+                            name, routes2, os.path.join('benchmarks', perturbated_solution_filename))
