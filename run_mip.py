@@ -5,9 +5,6 @@ from os.path import isfile, join
 import time
 
 
-os.chdir("C:/Users/Louis/Documents/1stYearMasters/Fall Semester/MIE562/VRPTW_scheduler/")
-
-
 import random
 import numpy as np
 from docplex.mp.model import Model
@@ -67,7 +64,7 @@ def check_feasibility(pert_st, lb, ub, tol=1e-9):
     return failed
 
 
-def run_MIP(param):
+def build_MIP(param):
 
     prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size = param
 
@@ -182,7 +179,7 @@ def traverse_path(mat, li, i = 0):
     return traverse_path(mat, li, i)
 
 
-def main(params):
+def run_MIP(params):
     """
         Runs the MIP model based on the input parameter tuples.
 
@@ -204,7 +201,7 @@ def main(params):
         prob_name = "{}{}" + "_v{}_c{}_tw{}_xy{}_".format(num_vehicles, num_nodes, time_window, map_size) + "{}"
 
         st = time.time()
-        m, lb, ub = run_MIP(param)
+        m, lb, ub = build_MIP(param)
         st2 = time.time()
         msol = m.solve(log_output=True)
         et = time.time()
@@ -251,12 +248,14 @@ def main(params):
     return results
 
 if __name__ == "__main__":
+
     # Should match file combinations in benchmark folder
     params = {"num_vehicles":[1,2,4,], "num_nodes":[4,16,64,], "time_window":[4,8,16], "map_size":[16], "instances":[0,1,2,3,4], "problems":[1,2,4,8]}
+
     # prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size
     params = [(prob, ins, v, n, tw, xy) for v in params['num_vehicles'] for n in params['num_nodes'] for tw in params['time_window'] for xy in params['map_size'] for ins in params['instances'] for prob in params['problems'] if v < n and prob < n]
 
-    results = main(params)
+    results = run_MIP(params)
 
 
 
@@ -271,7 +270,7 @@ if __name__ == "__main__":
 #         params.append(param)
 #
 # for param in params:
-#     m, lb, ub = run_MIP(param)
+#     m, lb, ub = build_MIP(param)
 #     m.solve()
 #     prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size = param
 #
