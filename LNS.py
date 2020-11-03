@@ -69,7 +69,7 @@ def distBtwnPts(coords1,coords2):
     a = ((coords1[0]-coords2[0])**2 + (coords1[1]-coords2[1])**2)
     return (math.sqrt(a))
             
-def removeVisits(path, all_visits, frac):
+def removeVisits(path, all_visits, cData, frac):
     #find visits to remove
     
     #number of visits to remove
@@ -91,7 +91,7 @@ def removeVisits(path, all_visits, frac):
         rand_index = random.randrange(len(rem_vs))
         v_compare = rem_vs[rand_index]
 
-        #v_ind = removeVisit(v_compare,all_visits)
+        removeVisit(v_compare, all_visits, cData, rem_vs)
 
 
 
@@ -108,11 +108,56 @@ def removeVisits(path, all_visits, frac):
     return rem_vs, path
 
 
-def removeVisit(v_comp, all_visits):
+def removeVisit(v_comp, all_visits, cData,rem_vs):
     #ranks all_visits based on similarity to v_comp, selects one visit to remove, removes from all_visits, appends to rem_vs
+
+    #compute relatedness measure
+    for i in range(len(all_visits)):
+        r = relatedness(v_comp, all_visits[i], cData)
+
+        if len(all_visits[i]) == 3:
+
+            all_visits[i].append(r)
+        else:
+            all_visits[i][3] = r
+
+    #sort list by relatedness
+    all_visits.sort(key=lambda x: x[3])
+
+    #choose first
+    ind = 0
+    rem_vs.append(all_visits[ind])
+    del all_visits[ind]
+
 
     pass
     #return v_ind
+
+def relatedness(v1,v2,cData):
+    #find the relatedness of two visits
+
+    coords1 = (cData[v1[0]][0] , cData[v1[0]][1])
+    coords2 = (cData[v2[0]][0] , cData[v2[0]][1])
+
+    d = distBtwnPts(coords1,coords2)
+    
+    #T is 1 if vehicle is the same
+    T = 0
+    if v1[1] == v2[1]:
+        T = 1
+    
+    #difference in service time
+    s_diff = abs(v1[2] - v2[2])
+
+
+    #hyperparameter values
+    a = 0.75
+    b = 0.1
+    g = 1
+
+
+    r = 1/(a*d + b*s_diff + g*T)
+    return r
 
 
 def run_LNS(frac, bPath, pInfo, nSwaps):
@@ -175,7 +220,7 @@ def run_LNS(frac, bPath, pInfo, nSwaps):
 
 
     #get removed visits and the reduced path
-    rem_vs, red_path = removeVisits(cp.deepcopy(path),cp.deepcopy(all_visits),float(frac))
+    rem_vs, red_path = removeVisits(cp.deepcopy(path),cp.deepcopy(all_visits),cp.deepcopy(cData),float(frac))
 
    
 
