@@ -1,3 +1,0 @@
-python39 problem_generator.py --name problem1 --num-vehicles 2 --x-limit 10 --y-limit 10 --num-customers 5 --tw-limit 3 --output problem1.txt --solution solution_problem1.txt --seed 1234
-
-python39 mpp_generator.py --name problem1 --num-vehicles 2 --x-limit 10 --y-limit 10 --num-customers 5 --tw-limit 3 --num-perturbations 3 --original-output problem1.txt --perturbated-output perturbated_problem1.txt --solution solution_problem1.txt --seed 1234
