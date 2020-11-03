@@ -78,7 +78,6 @@ def removeVisits(path, all_visits, cData, frac):
     rem_vs = []
     red_path = []
 
-    print(all_visits)
 
     #randomly choose first removal
     rand_index = random.randrange(len(all_visits))
@@ -87,51 +86,68 @@ def removeVisits(path, all_visits, cData, frac):
 
     while len(rem_vs) < nRem:
 
+
         #chose a random visit from the already removed set
         rand_index = random.randrange(len(rem_vs))
         v_compare = rem_vs[rand_index]
+        
 
         removeVisit(v_compare, all_visits, cData, rem_vs)
 
 
-
-        break
-
+        
     #delete all removed visits from the path
     for i in range(len(rem_vs)):
-        j = rem_vs[i][0]
-        vehicle = rem_vs[i][1]
+        #customer
         
+        j = rem_vs[i][0]
+        
+        #vehicle
+        veh = rem_vs[i][1]
+        path[veh].remove(j)
+
         #don't iterate over path while modifiying
 
-   
+    #delete the relatendess from the rem_vs
+    for i in range(len(rem_vs)):
+        if len(rem_vs[i]) == 4:
+            del rem_vs[i][3]
+
+
     return rem_vs, path
 
 
 def removeVisit(v_comp, all_visits, cData,rem_vs):
     #ranks all_visits based on similarity to v_comp, selects one visit to remove, removes from all_visits, appends to rem_vs
 
+    #hyperparameter d, used from paper, controls determinism
+    d = 5
+
     #compute relatedness measure
     for i in range(len(all_visits)):
         r = relatedness(v_comp, all_visits[i], cData)
 
-        if len(all_visits[i]) == 3:
 
+        #if first time running function
+        if len(all_visits[i]) == 3:
             all_visits[i].append(r)
+        #if not first time
         else:
             all_visits[i][3] = r
 
     #sort list by relatedness
-    all_visits.sort(key=lambda x: x[3])
+    all_visits.sort(key=lambda x: x[3], reverse = True)
 
-    #choose first
-    ind = 0
+
+    #choose visit: formula is floor(|remaining_visits| * rand^D) as per paper
+    rand_num = random.random()
+    ind = math.floor(len(all_visits)*(rand_num**d))
+
+
     rem_vs.append(all_visits[ind])
     del all_visits[ind]
 
 
-    pass
-    #return v_ind
 
 def relatedness(v1,v2,cData):
     #find the relatedness of two visits
@@ -157,6 +173,8 @@ def relatedness(v1,v2,cData):
 
 
     r = 1/(a*d + b*s_diff + g*T)
+    
+
     return r
 
 
@@ -222,7 +240,10 @@ def run_LNS(frac, bPath, pInfo, nSwaps):
     #get removed visits and the reduced path
     rem_vs, red_path = removeVisits(cp.deepcopy(path),cp.deepcopy(all_visits),cp.deepcopy(cData),float(frac))
 
-   
+    print('rem_vs ', rem_vs)
+    print('path-reduced ', red_path)
+
+    
 
     #TO DO: check copy for all list args
 
