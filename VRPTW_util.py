@@ -77,16 +77,15 @@ class VRPTWInstance:
         """
         return self.nodes[i].distance(self.nodes[j])
 
-    def get_time(self, routes: List[List[int]]) -> Optional[float, List[Tuple[int, float]]]:
+    def get_time(self, routes: List[List[int]]) -> Optional[List[Tuple[int, float]]]:
         """
         The time steps when vehicles start at nodes
 
         :param routes: routes
-        :return: None if the routes is invalid and the solution cost and the list describes which vehicle visits which nodes when otherwise.
+        :return: None if the routes is invalid and the list describes which vehicle visits which nodes when otherwise.
         """
         node_to_vehicle_time = [(-1, -1.0)] * len(self.nodes)
         node_to_vehicle_time[0] = (-1, 0.0)
-        cost = 0.0
 
         for i, r in enumerate(routes):
             t = 0
@@ -94,7 +93,6 @@ class VRPTWInstance:
 
             for cur in r:
                 distance = self.distance(prev, cur)
-                cost += distance
                 t = max(t + distance, self.nodes[cur].a)
 
                 # too late
@@ -108,13 +106,11 @@ class VRPTWInstance:
                 node_to_vehicle_time[cur] = (i, t)
                 prev = cur
 
-            cost += self.distance(prev, 0)
-
         # a node is not visited
         if any([t[0] == -1 for t in node_to_vehicle_time[1:]]):
             return None
 
-        return cost, node_to_vehicle_time
+        return node_to_vehicle_time
 
     def dump(self, filename: str) -> None:
         """
