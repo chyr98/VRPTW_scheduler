@@ -1,33 +1,46 @@
 from typing import List
 import numpy as np
 import VRPTW_util
+import copy
+import time
+import sys, getopt
 
 import gurobipy as gp
 from gurobipy import GRB
+
+DEPOT_INDEX = 0
+LARGE = 1e7
+
+
+class VRPTWNode:
+    def __init__(self, decision, parent, children):
+        self.decision = decision
+        self.constraint = None
+        self.parent = parent
+        self.children = children
+
+
+class VRPTWTree:
+    def __init__(self, model, service_indicators):
+        self.model = model
+        self.service_indicators = service_indicators
+        self.root = VRPTWNode([], None, [])
+        self.curr_node = self.root
+
+    def backtrack(self, best_sol):
+        if self.curr_node.parent is not None:
+            self.model.remove(self.curr_node.constraint)
+            self.curr_node = self.curr_node.parent
+            self.model.update()
 
 
 def relaxed_solution(model: gp.Model):
     relaxed_model = model.relax()
     relaxed_model.optimize()
-    return relaxed_model.objVal
-
-
-class VRPTWNode:
-    def __init__(self, expressions: List[gp.Constr], parent, children):
-        self.constr = expressions
-        self.parent = parent
-        self.children = children
-        self.optimal = 0
-
-
-class VRPTWTree:
-    def __init__(self, problem: VRPTW_util.VRPTWInstance):
-        self.model, self.service_indicators, _, self.distance_map, self.timewindow = model_initialization(problem)
-        self.root = VRPTWNode([], None, [])
-        self.current_loc = self.root
-
-    def dive(self, index):
-        self.model.addConstrs()
+    if relaxed_model.getAttr(GRB.Attr.Status) == GRB.INFEASIBLE:
+        return LARGE
+    else:
+        return relaxed_model.objVal
 
 
 def model_initialization(problem: VRPTW_util.VRPTWInstance):
@@ -38,10 +51,9 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
 
     # Variables
 
-    # shape of (k, p, i, j) p=nodes-1, i,j=nodes+1, indicates vehicle k travel from i to j in pth travel
-    # take in account of an additional variable to stands for idling after travel
+    # shape of (k, i, j) i,j=nodes, indicates vehicle k travel from i to j
     service_indicators = []
-    # shape of (k, p), stands for the time when vehicle k leaves pth customer
+    # shape of (k, i), stands for the time when vehicle k leaves customer i, unbounded if not visited
     service_time = []
 
     for k in range(vehicles):
@@ -49,19 +61,15 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
         level1 = []
         vehicle_service_time = []
 
-        for p in range(nodes - 1):
+        for i in range(nodes):
 
             level2 = []
-            for i in range(nodes + 1):
+            for j in range(nodes):
 
-                level3 = []
-                for j in range(nodes + 1):
-                    level3.append(model.addVar(vtype=GRB.BINARY, name="I^%g_%g,%g,%g" % (k, i, j, p)))
-
-                level2.append(level3)
+                level2.append(model.addVar(vtype=GRB.BINARY, name="I^%g_%g,%g" % (k, i, j)))
 
             level1.append(level2)
-            vehicle_service_time.append(model.addVar(vtype=GRB.CONTINUOUS, name="s^%g_%g" % (k, p)))
+            vehicle_service_time.append(model.addVar(vtype=GRB.CONTINUOUS, name="s^%g_%g" % (k, i)))
 
         service_indicators.append(level1)
         service_time.append(vehicle_service_time)
@@ -69,7 +77,7 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
     service_indicators = np.array(service_indicators)
     service_time = np.array(service_time)
 
-    distance_map = [[] for _ in range(nodes + 1)]
+    distance_map = [[] for _ in range(nodes)]
     time_window = [[], []]
 
     for i in range(nodes):
@@ -78,77 +86,62 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
 
         for j in range(nodes):
             distance_map[i].append(problem.distance(i, j))
-        # distance for idle index
-        distance_map[i].append(0)
 
-    distance_map[-1] = [0] * (nodes + 1)
-    # time window for the idle index
-    time_window[0].append(min(time_window[0]))
-    time_window[1].append(max(time_window[1]))
+    # time window for the depot index
+    time_window[0][0] = min(time_window[0])
+    time_window[1][0] = max(time_window[1])+max(distance_map[0])
 
     distance_map = np.array(distance_map)  # shape of (i, j)
-    time_window = np.array(time_window)  # shape of (2, j)
+    time_window = np.array(time_window)  # shape of (2, i)
 
     # Constraints
-
-    # Vehicles have to start from node 0
-    model.addConstr(gp.quicksum(service_indicators[:, 0, list(range(1, nodes + 1)), :].flatten()) == 0,
-                    "Start_positionC")
-    # idle index cannot travel to other location
-    model.addConstr(gp.quicksum(service_indicators[:, :, -1, :-1].flatten()) == 0, "Stay_idle_con")
-
+    customer_indices = list(range(nodes))
+    customer_indices.remove(DEPOT_INDEX)
     for k in range(vehicles):
 
-        for p in range(nodes - 1):
-            # Constraints that make sure each vehicle travels on one arc at each time
-            model.addConstr(gp.quicksum(service_indicators[k, p, :, :].flatten()) <= 1, "binaryC^%g_%g" % (k, p))
+        # Each vehicle needs a start and an end
+        model.addConstr(gp.quicksum(service_indicators[k, DEPOT_INDEX, :].flatten()) == 1, "StartC^%g" % k)
+        model.addConstr(gp.quicksum(service_indicators[k, :, DEPOT_INDEX].flatten()) == 1, "EndC^%g" % k)
 
-            # Make sure Vehicles don't travel back to the location, except the idle index
-            model.addConstr(gp.quicksum((service_indicators[k, p].diagonal())[:-1]) == 0, "backLoopC^%g_%g" % (k, p))
+        # Make sure Vehicles don't travel back to the location, except the depot index
+        model.addConstr(gp.quicksum((service_indicators[k].diagonal())[customer_indices]) == 0, "backLoopC^%g" % k)
 
+        for i in range(nodes):
             # Timewindow Constraints
             model.addConstr(
-                gp.quicksum((service_indicators[k, p, :, :] * time_window[0]).flatten()) <= service_time[k, p],
-                "lb_twC^%g_%g" % (k, p))
+                gp.quicksum(service_indicators[k, i, :].flatten()) * time_window[0][i] <= service_time[k, i],
+                "lb_twC^%g_%g" % (k, i))
             model.addConstr(
-                gp.quicksum((service_indicators[k, p, :, :] * time_window[1]).flatten()) >= service_time[k, p],
-                "ub_twC^%g_%g" % (k, p))
+                gp.quicksum(service_indicators[k, i, :].flatten()) * time_window[1][i] >= service_time[k, i],
+                "ub_twC^%g_%g" % (k, i))
 
-            if p == 0:
-                # Travel time constraints, start time for each vehicle is 0
-                model.addConstr(gp.quicksum((service_indicators[k, p, :, :] * distance_map).flatten())
-                                <= service_time[k, p], "timeC^%g_%g" % (k, p))
-            else:
+            model.addConstr(gp.quicksum(service_indicators[k, i, :].flatten()) <= 1, "travel_limit")
+            model.addConstr(gp.quicksum(service_indicators[k, :, i].flatten()) <= 1, "travel_limit")
+
+            # Travel time constraints, start time for each vehicle is 0
+            model.addConstr(distance_map[DEPOT_INDEX, i]- service_time[k, i]
+                            <= (1-service_indicators[k, DEPOT_INDEX, i]) * LARGE, "timeC^%g_%g,%g" % (k, 0, i))
+
+            for j in customer_indices:
                 # Travel time constraints
-                model.addConstr(
-                    service_time[k, p - 1] + gp.quicksum((service_indicators[k, p, :, :] * distance_map).flatten())
-                    <= service_time[k, p], "timeC^%g_%g" % (k, p))
+                model.addConstr(service_time[k, j] - service_time[k, i] + distance_map[j, i] <=
+                                (1-service_indicators[k, j, i]) * LARGE, "timeC^%g_%g,%g" % (k, j, i))
 
-                # Each vehicle must travel continuously
-                model.addConstr(gp.quicksum(service_indicators[k, p, :, :].flatten())
-                                <= gp.quicksum(service_indicators[k, p - 1, :, :].flatten()),
-                                "continuous_route^%g_%g" % (k, p))
+            # Each vehicle must travel continuously
+            model.addConstr(gp.quicksum(service_indicators[k, i, :].flatten()) ==
+                            gp.quicksum(service_indicators[k, :, i].flatten()), "continuous_route^%g_%g" % (k, i))
 
-                for i in range(nodes + 1):
-                    for j in range(nodes + 1):
-                        indices = list(range(nodes + 1))
-                        indices.remove(j)
-
-                        for var in service_indicators[k, p, indices, :].flatten():
-                            # Constraints that make sure vehicles start travel from where they at in next time period.
-                            model.addConstr(service_indicators[k, p - 1, i, j] + var <= 1, "connection^%g_%g" % (k, p))
     # Service completion constraints, node 0 is depot
-    for j in range(1, nodes):
-        model.addConstr(gp.quicksum(service_indicators[:, :, :, j].flatten()) >= 1, "completion_%g" % j)
+    for j in customer_indices:
+        model.addConstr(gp.quicksum(service_indicators[:, :, j].flatten()) >= 1, "completion_%g" % j)
 
-    model.setObjective(gp.quicksum(service_time[:, -1]), GRB.MINIMIZE)
+    # Minimize the total travel time, notice service time on depot stands for the time when vehicle get back
+    model.setObjective(gp.quicksum(service_time[:, DEPOT_INDEX]), GRB.MINIMIZE)
 
-    print(time_window)
-    print(distance_map)
     return model, service_indicators, service_time, distance_map, time_window
 
 
-def print_solution(file_name, problem, service_indicators):
+def print_solution(file_name, problem, route):
     vehicles, customers = problem.num_vehicles, len(problem.nodes)
     f = open(file_name, "w")
 
@@ -156,88 +149,209 @@ def print_solution(file_name, problem, service_indicators):
     f.write(str(vehicles) + "\n")
 
     for k in range(vehicles):
-        for p in range(customers-1):
-            index = np.argmax(service_indicators[k][p])
-            if index % (nodes + 1) != customers:
-                f.write(str(index % (nodes + 1)) + " ")
-            else:
-                break
+        for i in route[k]:
+            if i != DEPOT_INDEX:
+                f.write(str(i) + " ")
         f.write("\n")
+
     f.close()
 
 
-def backtrack_search(problem: VRPTW_util.VRPTWInstance, perturbed_problem: VRPTW_util.VRPTWInstance):
+def recursive_step(tree, guide, ordered_vehicles, routes, customers_waiting, old_available_decisions, upper_bound, depth):
+    model = tree.model
+    service_indicators = tree.service_indicators
+    curr_node = tree.curr_node
+    available_decisions = copy.deepcopy(old_available_decisions)
 
-    model, service_indicators, service_time, _, _ = model_initialization(problem)
+    # when all customers are served, optimizes the model since it is a leaf
+    if not customers_waiting:
+        model.optimize()
+        if model.getAttr(GRB.Attr.Status) == GRB.INFEASIBLE:
+            best_sol = LARGE
+        else:
+            best_sol = model.objVal
+
+        tree.backtrack(best_sol)
+        return best_sol, routes
+
+    lower_bound = relaxed_solution(model)
+    if lower_bound >= upper_bound:
+        # already found a better solution
+        tree.backtrack(LARGE)
+        return LARGE, routes
+
+    best_routes = routes
+    best_sol = upper_bound
+    for k in ordered_vehicles:
+        # check the similarity between guide route and current route, first search on the route close to guide route
+        target_node = -1
+        if routes[k]:
+            i = routes[k][-1]
+            if len(guide[k]) > len(routes[k]) and guide[k][len(routes[k])-1] == i:
+                target_node = guide[k][len(routes[k])]
+        else:
+            i = 0
+            target_node = guide[k][0]
+
+        choices = list(set(available_decisions[i]).intersection(customers_waiting))
+        if target_node in choices:
+            choices.remove(target_node)
+            choices.insert(0, target_node)
+
+        for j in choices:
+            child = VRPTWNode((k, i, j), curr_node, [])
+            curr_node.children.append(child)
+
+            # dive to this node
+            child.decision = (k, i, j)
+            child.constraint = model.addConstr(service_indicators[k, i, j] == 1, "decision^%g_%g,%g" % (k, i, j))
+            model.update()
+
+            new_routes = copy.deepcopy(routes[:])
+            new_customers_line = copy.deepcopy(customers_waiting[:])
+
+            new_routes[k].append(j)
+            new_customers_line.remove(j)
+
+            tree.curr_node = child
+            new_sol, new_routes = recursive_step(tree, guide, ordered_vehicles[1:] + ordered_vehicles[0:1],
+                                                 new_routes, new_customers_line, available_decisions, best_sol, depth+1)
+            #print("depth %g :" % depth + str(routes) + " " + str(customers_waiting) + " with solution : " + str(new_sol))
+
+            if new_sol < best_sol:
+                best_sol, best_routes = new_sol, new_routes
+            if best_sol <= lower_bound:
+                # backtrack
+                tree.backtrack(best_sol)
+                return best_sol, best_routes
+    # backtrack
+    tree.backtrack(best_sol)
+    return best_sol, best_routes
+
+
+def backtrack_search(model, original_route, service_indicators, service_time, distance_map, time_window):
+    vehicles = service_indicators.shape[0]
+    nodes = service_indicators.shape[1]
+    tree = VRPTWTree(model, service_indicators)
+    curr_routes = [[] for _ in range(vehicles)]
+    available_decisions = [[] for _ in range(nodes)]
+    customers_waiting = list(range(1, nodes))
+
+    for i in range(nodes):
+        for j in range(nodes):
+            if i != j and time_window[0][i] + distance_map[i][j] <= time_window[1][j]:
+                available_decisions[i].append(j)
+
+    solution, opt_routes = recursive_step(tree, original_route, list(range(vehicles)), curr_routes, customers_waiting, available_decisions, LARGE, 0)
+
+    return solution, opt_routes
+
+
+def main(argv):
+    file_name = ""
+    output_file = ""
+    perturbated_file_name = ""
+    perturbated_output_file = ""
+    help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -o <solution outputfile> ' \
+                   '-O <perturbed solution outputfile>'
+    try:
+        opts, args = getopt.getopt(argv, "hi:I:o:O:", ["ifile=", "Ifile=", "ofile=", "Ofile"])
+    except getopt.GetoptError:
+        print(help_message)
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print(help_message)
+            sys.exit()
+        elif opt in ("-i", "--ifile"):
+            file_name = arg
+        elif opt in ("-o", "--ofile"):
+            output_file = arg
+        elif opt in ("-I", "--Ifile"):
+            perturbated_file_name = arg
+        elif opt in ("-O", "--Ofile"):
+            perturbated_output_file = arg
+
+    problem = VRPTW_util.VRPTWInstance.load(file_name)
+    perturbated_problem = VRPTW_util.VRPTWInstance.load(perturbated_file_name)
+    vehicles, nodes = problem.num_vehicles, len(problem.nodes)
+
+    model, service_indicators, service_time, distance_map, time_window = model_initialization(problem)
+
+    original_p_start = time.perf_counter()
     model.optimize()
+    original_p_end = time.perf_counter()
+    ori_run_time = original_p_end - original_p_start
 
-    indicator_v = np.array([v.x for v in service_indicators.flatten()]).reshape(vehicles, nodes-1, nodes+1, nodes+1)
-    original_opt_sol = model.objVal
+    indicators_v = np.array([v.x for v in service_indicators.flatten()]).reshape(vehicles, nodes, nodes)
+    service_time_v = np.array([v.x for v in service_time.flatten()]).reshape(vehicles, nodes)
+    ori_opt_sol = model.objVal
 
-    print_solution("opt_original_solution.txt", problem, indicator_v)
+    original_route = [[] for _ in range(vehicles)]
+    for k in range(vehicles):
+        curr_customer = np.argmax(indicators_v[k, DEPOT_INDEX])
+
+        for _ in range(round(float(np.sum(indicators_v[k])))):
+            original_route[k].append(curr_customer)
+            curr_customer = np.argmax(indicators_v[k, curr_customer])
+
+    print_solution(output_file, problem, original_route)
+    print("The optimal cost for the original VRPTW problem is {}".format(ori_opt_sol))
+    print("The VRPTW optimizer took {} seconds".format(ori_run_time))
 
     # timewindow for perturbed problem
     new_time_window = [[], []]
     for i in range(nodes):
-        new_time_window[0].append(perturbed_problem.nodes[i].a)
-        new_time_window[1].append(perturbed_problem.nodes[i].b)
+        new_time_window[0].append(perturbated_problem.nodes[i].a)
+        new_time_window[1].append(perturbated_problem.nodes[i].b)
 
-    new_time_window[0].append(min(new_time_window[0]))
-    new_time_window[1].append(max(new_time_window[1]))
+    new_time_window[0][0] = min(new_time_window[0])
+    new_time_window[1][0] = max(new_time_window[1])+max(distance_map[0])
 
     # Reset model
     model.reset()
     # MPP solution
     difference_in_travels = []
     for k in range(vehicles):
-        for p in range(nodes-1):
-            route_change_indicator = model.addVar(vtype=GRB.CONTINUOUS, name="change_ind^%g_%g" % (k, p))
-            for i in range(nodes):
-                for j in range(nodes):
-                    model.addConstr(service_indicators[k, p, i, j] - indicator_v[k, p, i, j] <= route_change_indicator,
-                                    "route_check^%g_%g,%g,%g" % (k, p, i, j))
-                    model.addConstr(indicator_v[k, p, i, j] - service_indicators[k, p, i, j] <= route_change_indicator,
-                                    "route_check^%g_%g,%g,%g" % (k, p, i, j))
+        for i in range(nodes):
+            route_change_indicator = model.addVar(vtype=GRB.CONTINUOUS, name="change_ind^%g_%g" % (k, i))
+            model.addConstr(service_time[k, i] - service_time_v[k, i] <= route_change_indicator,
+                            "route_check^%g_%g" % (k, i))
+            model.addConstr(service_time_v[k, i] - service_time[k, i] <= route_change_indicator,
+                            "route_check^%g_%g" % (k, i))
             difference_in_travels.append(route_change_indicator)
 
             # remove the original timewindow constraints
-            model.remove(model.getConstrByName("lb_twC^%g_%g" % (k, p)))
-            model.remove(model.getConstrByName("ub_twC^%g_%g" % (k, p)))
+            model.remove(model.getConstrByName("lb_twC^%g_%g" % (k, i)))
+            model.remove(model.getConstrByName("ub_twC^%g_%g" % (k, i)))
             model.update()
 
             # new timewindow constraints
             model.addConstr(
-                gp.quicksum((service_indicators[k, p, :, :] * new_time_window[0]).flatten()) <= service_time[k, p],
-                "lb_twC^%g_%g" % (k, p))
+                gp.quicksum(service_indicators[k, i, :].flatten()) * new_time_window[0][i] <= service_time[k, i],
+                "lb_twC^%g_%g" % (k, i))
             model.addConstr(
-                gp.quicksum((service_indicators[k, p, :, :] * new_time_window[1]).flatten()) >= service_time[k, p],
-                "ub_twC^%g_%g" % (k, p))
+                gp.quicksum(service_indicators[k, i, :].flatten()) * new_time_window[1][i] >= service_time[k, i],
+                "ub_twC^%g_%g" % (k, i))
 
     model.setObjective(gp.quicksum(difference_in_travels), GRB.MINIMIZE)
-    model.optimize()
 
-    indicator_v = np.array([v.x for v in service_indicators.flatten()]).reshape(vehicles, nodes - 1, nodes + 1,
-                                                                                nodes + 1)
-    service_time_v = np.array([v.x for v in service_time.flatten()]).reshape(vehicles, nodes - 1)
-    mpp_opt_sol = model.objVal
+    mpp_start = time.perf_counter()
+    mpp_opt_sol, mpp_opt_routes = backtrack_search(model, original_route, service_indicators, service_time,
+                                                   distance_map, new_time_window)
+    mpp_end = time.perf_counter()
+    mpp_run_time = mpp_end - mpp_start
 
-    print_solution("perturbed_opt_solution.txt", perturbed_problem, indicator_v)
-
-    return mpp_opt_sol, indicator_v, service_time_v
+    print_solution(perturbated_output_file, perturbated_problem, mpp_opt_routes)
+    print("The optimal cost for the MPP is {}".format(mpp_opt_sol))
+    print("The MPP optimizer took {} seconds".format(mpp_run_time))
 
 
 if __name__ == '__main__':
-    file_name = "problem1.txt"
-    perturbated_file_name = "perturbated_problem1.txt"
-    problem = VRPTW_util.VRPTWInstance.load(file_name)
-    perturbated_problem = VRPTW_util.VRPTWInstance.load(perturbated_file_name)
-    vehicles, nodes = problem.num_vehicles, len(problem.nodes)
+    message = "backtrack_search.py -i problem1.txt -I perturbated_problem1.txt " \
+              "-o opt_original_solution.txt -O perturbed_opt_solution.txt"
+    #message = "backtrack_search.py -i benchmarks/original_v2_c16_tw4_xy16_0.txt -I benchmarks/perturbated1_v2_c16_tw4_xy16_0.txt " \
+              #"-o benchmarks/opt_original_solution.txt -O benchmarks/perturbed_opt_solution.txt"
+    main(message.split()[1:])
+    #main(sys.argv[1:])
 
-    opt_sol, indicators, times = backtrack_search(problem, perturbated_problem)
-    print(opt_sol)
-    for k in range(vehicles):
-        print("Vehicle %g:" % k)
-        for p in range(nodes-1):
-            index = np.argmax(indicators[k][p])
-            print(index // (nodes+1), index % (nodes+1))
-    print(times)
