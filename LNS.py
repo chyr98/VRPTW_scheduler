@@ -216,14 +216,12 @@ def ChooseVisit(r_path, rem_vs, orig_s_times,cData,d):
     v = None
     P = None
     v_ind = None
-    #print('\n reduced path is ', r_path)
-    #print('\n removed visits are ', rem_vs)
+
 
 
     for i in range(len(rem_vs)):
         f_pts = []
 
-        #print('------------------------------------------considering customer ' , rem_vs[i][0])
 
         for j in range(len(r_path)):
             #print('---------------------------considering vehicle ' , j)
@@ -243,16 +241,14 @@ def ChooseVisit(r_path, rem_vs, orig_s_times,cData,d):
                 del r_path[j][k]
 
 
-        #print('------------------------------------------------------------------------------------------------')
-        #print(' RESULTS FOR CUSTOMER  ' , rem_vs[i][0])
-        #print('unsorted feasible points', f_pts)
+
         if f_pts:
             f_pts.sort(key = lambda x:x[2])
-        #print('sorted', f_pts)
+
 
             max_min_cost = f_pts[0][2] 
             if max_min_cost > max_min_cost_tot:
-                #print('new_max_min_cost found: , ' , max_min_cost)
+
                 v = rem_vs[i][0]
                 v_ind = i
                 P = f_pts[0:d]
@@ -309,7 +305,7 @@ def Reinsert(red_path, rem_vs, d, optimal, orig_s_times, cData, res_path):
     else:
       #chose which visit to branch on and which values to explore
       v, v_ind, P = ChooseVisit(red_path,rem_vs,orig_s_times,cData,d)
-      #print('selected variable and top points: ', v, ' \n ', P)
+
 
       if P != None:
             # Implement LDS (see paper)
@@ -317,34 +313,28 @@ def Reinsert(red_path, rem_vs, d, optimal, orig_s_times, cData, res_path):
             p = 0
 
             while i <= d and p < len(P):
-                #insert v at v_ind 
-                #print('------------------------------ i is , ',i)
-                #print('-------------------PATH LENGTH IS ', len(red_path))
-                #print('old path is ' , red_path)
+
                 veh = P[p][1]
                 veh_path = red_path[veh]
                 veh_path.insert(P[p][0],v)
-                #print('inserting customer %d into vehicle %d at index %d' %(v, veh, P[p][0]))
-                #print('new path is ' , red_path)
 
-                #print('rem_vs before removal' , rem_vs)
                 #save removed visit
                 v_saved = rem_vs[v_ind]
                 #delete reinserted visit from rem_vs
                 del rem_vs[v_ind]
 
-                #print('The cost was previously calculated at ', P[p][2])
+
 
 
                 Reinsert(red_path,rem_vs,(d-i),optimal,orig_s_times,cData,res_path)
                 
                 #Put back the added visit to removed visit list
                 rem_vs.insert(v_ind,v_saved)
-                #print('rem_vs after reinsertion' , rem_vs)
+
 
                 #delete removed visit from path
                 del veh_path[P[p][0]]
-                #print('path after removal' , red_path)
+
                 
                 i += 1
                 p += 1
@@ -436,16 +426,6 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, res_path):
 
     print('initial best obj', best_obj)
     
-    
-    #test_path = [[3, 8, 13, 5], [], [12, 2, 14], [11, 9, 7, 15, 6, 1, 4, 10]]
-    #r = PathQuality(test_path,orig_s_times,cData)
-    #print('TEST_____---------',r)
-    
-    
-    
-    
-    
-    
     #get removed visits and the reduced path
     rem_vs, red_path = removeVisits(cp.deepcopy(path),cp.deepcopy(all_visits),cData,float(frac))
 
@@ -454,7 +434,7 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, res_path):
     Reinsert(red_path,rem_vs,d,optimal,orig_s_times,cData,res_path)
     
     print('best obj at end is ', best_obj)
-    #print('inital was ', temp)
+
 
     
 
