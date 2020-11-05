@@ -208,12 +208,14 @@ def Objective(s_MPP, s_orig):
 
 
 def ChooseVisit(r_path, rem_vs, orig_s_times,cData,d):
-    #given a set of removed visits and a reduced path, select the variable (i.e return customer ID) to branch on and return the top d points (only these will be searched)
+    #given a set of removed visits and a reduced path, select the variable (i.e return customer ID) to branch on and return the top d points (only these will be searched), 
+    #return (customer , index in rem_vs, [(insertion index, vehicle, cost), ... ]) 
 
-    #make a list of feasible insertion points for each visit (ind, V, c), inserting the visit at index ind in the route of vehicle v, at cost c
-
-    #find the variable with the maximum minimum cost
+    #want the variable with the maximum minimum cost
     max_min_cost_tot = 0
+    v = None
+    P = None
+    v_ind = None
     #print('\n reduced path is ', r_path)
     #print('\n removed visits are ', rem_vs)
 
@@ -244,17 +246,19 @@ def ChooseVisit(r_path, rem_vs, orig_s_times,cData,d):
         #print('------------------------------------------------------------------------------------------------')
         #print(' RESULTS FOR CUSTOMER  ' , rem_vs[i][0])
         #print('unsorted feasible points', f_pts)
-        f_pts.sort(key = lambda x:x[2])
+        if f_pts:
+            f_pts.sort(key = lambda x:x[2])
         #print('sorted', f_pts)
 
-        max_min_cost = f_pts[0][2] 
-        if max_min_cost >= max_min_cost_tot:
-            #print('new_max_min_cost found: , ' , max_min_cost)
-            v = rem_vs[i][0]
-            P = f_pts[0:d]
-            max_min_cost_tot = max_min_cost
+            max_min_cost = f_pts[0][2] 
+            if max_min_cost > max_min_cost_tot:
+                #print('new_max_min_cost found: , ' , max_min_cost)
+                v = rem_vs[i][0]
+                v_ind = i
+                P = f_pts[0:d]
+                max_min_cost_tot = max_min_cost
 
-    return (v, P)
+    return (v, v_ind, P)
 
     
     
@@ -280,20 +284,76 @@ def PathQuality(path,orig_s_times,cData):
 
 
 
-def Reinsert(path, rem_vs):
+def Reinsert(red_path, rem_vs, d, optimal, orig_s_times, cData, res_path):
     #takes a reduced path, visits to reinsert (rem_vs), and a lower bound on the best solution,
-    #Explores the search tree of reinserting all of  the visits, considering only the top d (i.e. 5) choices for each variable based on the heuristic in the paper
+    #Explores the search tree of reinserting all of  the visits, following a limited discrepancy search - starting with an initial value for d
     #the ordering heuristic is to choose the worst variable (i.e. the one with the maximum insertion cost to the objective) then select its best value
-
-    #d is discrepancy limit: set to 5 as per paper
-    d = 5
+    #if a better solution than the current best_path is found -> best_path is updated
     
+    global best_obj
+    global best_path
+    
+    if len(rem_vs) == 0:
+        res = PathQuality(red_path,orig_s_times,cData)
+        if res <= best_obj:
+            best_obj = res
+            best_path = red_path
+
+            print('------------------NEW BEST OBJ FOUND:' , best_obj)
+            print('------------------NEW BEST Path FOUND: \n' , best_path)
+
+            #update to - if within 0.01% of optimal
+            #if best_obj <= optimal:
+                #f = open(res_path,'w')
+                #f.write("Arrived at the optimal solution after", t_now, 's')
+    else:
+      #chose which visit to branch on and which values to explore
+      v, v_ind, P = ChooseVisit(red_path,rem_vs,orig_s_times,cData,d)
+      #print('selected variable and top points: ', v, ' \n ', P)
+
+      if P != None:
+            # Implement LDS (see paper)
+            i = 0
+            p = 0
+
+            while i <= d and p < len(P):
+                #insert v at v_ind 
+                #print('------------------------------ i is , ',i)
+                #print('-------------------PATH LENGTH IS ', len(red_path))
+                #print('old path is ' , red_path)
+                veh = P[p][1]
+                veh_path = red_path[veh]
+                veh_path.insert(P[p][0],v)
+                #print('inserting customer %d into vehicle %d at index %d' %(v, veh, P[p][0]))
+                #print('new path is ' , red_path)
+
+                #print('rem_vs before removal' , rem_vs)
+                #save removed visit
+                v_saved = rem_vs[v_ind]
+                #delete reinserted visit from rem_vs
+                del rem_vs[v_ind]
+
+                #print('The cost was previously calculated at ', P[p][2])
+
+
+                Reinsert(red_path,rem_vs,(d-i),optimal,orig_s_times,cData,res_path)
+                
+                #Put back the added visit to removed visit list
+                rem_vs.insert(v_ind,v_saved)
+                #print('rem_vs after reinsertion' , rem_vs)
+
+                #delete removed visit from path
+                del veh_path[P[p][0]]
+                #print('path after removal' , red_path)
+                
+                i += 1
+                p += 1
 
 
 
 
 
-def run_LNS(frac, bPath, pInfo, nSwaps,d):
+def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, res_path):
     #run the LNS algorithm
     #parameters: frac -  The fraction of visits that will be removed and reinserted for each iteration of local search.
     #bPath: benchmarks folder path
@@ -357,22 +417,44 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d):
     #Get service times from initial solution
     s_times = GetSTimes(nCus, nVeh, cp.deepcopy(all_visits))
     
-    best_obj = Objective(cp.deepcopy(s_times),cp.deepcopy(orig_s_times))
+
+
+
+
     
 
 
+
+
+
+    #initialize global best_path and best_obj variables
+    global best_path
+    global best_obj
+
+    best_obj = Objective(cp.deepcopy(s_times),cp.deepcopy(orig_s_times))
+    best_path = path
+
     print('initial best obj', best_obj)
-
-
-
-
+    
+    
+    #test_path = [[3, 8, 13, 5], [], [12, 2, 14], [11, 9, 7, 15, 6, 1, 4, 10]]
+    #r = PathQuality(test_path,orig_s_times,cData)
+    #print('TEST_____---------',r)
+    
+    
+    
+    
+    
+    
     #get removed visits and the reduced path
     rem_vs, red_path = removeVisits(cp.deepcopy(path),cp.deepcopy(all_visits),cData,float(frac))
 
-    print('runing choosevisit: \n')
-    (v,P) = ChooseVisit(cp.deepcopy(red_path), cp.deepcopy(rem_vs),orig_s_times,cData,d)
+
+    print('runing reinsert ()' )
+    Reinsert(red_path,rem_vs,d,optimal,orig_s_times,cData,res_path)
     
-    print('selected variable and top points: ', v, ' \n ', P)
+    print('best obj at end is ', best_obj)
+    #print('inital was ', temp)
 
     
 
@@ -401,6 +483,8 @@ if __name__ == '__main__':
                         help='the optimal solution, if available. If not provided, valued at 0. ')
     parser.add_argument('--d', '-d', type=str, default = 5,
                         help='parameter for limited discrepancy search')
+    parser.add_argument('--res_path', '-r', type=str, default = 'LNSresults.txt',
+                        help='Results file')
 
     args = parser.parse_args()
 
@@ -409,7 +493,7 @@ if __name__ == '__main__':
 
     else:
         print('running LNS...')
-        soln = run_LNS(args.frac, args.benchmarks_dir, args.prob_info, args.nSwaps,int(args.d))
+        soln = run_LNS(args.frac, args.benchmarks_dir, args.prob_info, args.nSwaps,int(args.d), float(args.optimal), args.res_path)
 
         print('saving solution...')
         write_Soln(soln)
