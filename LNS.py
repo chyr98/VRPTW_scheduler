@@ -277,7 +277,13 @@ def PathQuality(path,orig_s_times,cData):
         return obj
 
 
+def countCustomers(path):
+    cnt = 0 
+    for i in range(len(path)):
+        for j in range(len(path[i])):
+            cnt += 1
 
+    return cnt
 
 
 def Reinsert(red_path, rem_vs, d, optimal, orig_s_times, cData, res_path):
@@ -291,7 +297,7 @@ def Reinsert(red_path, rem_vs, d, optimal, orig_s_times, cData, res_path):
     
     if len(rem_vs) == 0:
         res = PathQuality(red_path,orig_s_times,cData)
-        if res <= best_obj:
+        if res < best_obj:
             best_obj = res
             best_path = red_path
 
@@ -326,7 +332,7 @@ def Reinsert(red_path, rem_vs, d, optimal, orig_s_times, cData, res_path):
 
 
 
-                Reinsert(red_path,rem_vs,(d-i),optimal,orig_s_times,cData,res_path)
+                Reinsert(cp.deepcopy(red_path),cp.deepcopy(rem_vs),(d-i),optimal,orig_s_times,cData,res_path)
                 
                 #Put back the added visit to removed visit list
                 rem_vs.insert(v_ind,v_saved)
@@ -407,31 +413,31 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, res_path):
     #Get service times from initial solution
     s_times = GetSTimes(nCus, nVeh, cp.deepcopy(all_visits))
     
-
-
-
-
-    
-
-
-
-
-
     #initialize global best_path and best_obj variables
     global best_path
     global best_obj
+    global t_start
 
     best_obj = Objective(cp.deepcopy(s_times),cp.deepcopy(orig_s_times))
     best_path = path
 
     print('initial best obj', best_obj)
     
+    for i in range(100):
     #get removed visits and the reduced path
-    rem_vs, red_path = removeVisits(cp.deepcopy(path),cp.deepcopy(all_visits),cData,float(frac))
+        print('iteration ' ,i)
+        
+        cnt = countCustomers(best_path)
+        
+        print(best_path)
 
+        #update all_visits
+        all_visits = makeVisitData(cp.deepcopy(best_path),cData)
 
-    print('runing reinsert ()' )
-    Reinsert(red_path,rem_vs,d,optimal,orig_s_times,cData,res_path)
+        rem_vs, red_path = removeVisits(cp.deepcopy(best_path),cp.deepcopy(all_visits),cData,float(frac))
+
+        print('runing reinsert ()' )
+        Reinsert(red_path,rem_vs,d,optimal,orig_s_times,cData,res_path)
     
     print('best obj at end is ', best_obj)
 
