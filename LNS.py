@@ -3,6 +3,8 @@ import argparse
 import random
 import math
 import time
+from pathlib import Path
+
 
 def readPath(filepath,nVeh):
     #reads a solution file and returns a list of sublists for each vehicle route
@@ -297,7 +299,8 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, res_path, t_
    global best_path
    global t_start
    global t_iter_start
-   
+   global optim_status
+
    t= time.time()
 
    if (t < (t_iter_start + t_lim_iter)) and (t < (t_start + t_lim)):
@@ -307,15 +310,16 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, res_path, t_
             best_obj = res
             best_path = red_path
 
-            print('------------------NEW BEST OBJ FOUND:' , best_obj)
-            print('------------------NEW BEST Path FOUND: \n' , best_path)
+            #print('------------------NEW BEST OBJ FOUND:' , best_obj)
+            #print('------------------NEW BEST Path FOUND: \n' , best_path)
 
             #Check if within optimality gap
             d_optimal = abs(optimal-res)
             if d_optimal <= og*optimal:
                 f = open(res_path,'w')
                 f.write(("Arrived at the optimal solution after " + str(round(t - t_start,1)) + ' s'))
-                print("Arrived at the optimal solution after ", round((t - t_start),1), ' s')
+                #print("Arrived at the optimal solution after ", round((t - t_start),1), ' s')
+                optim_status = True
                 
     else:
       #chose which visit to branch on and which values to explore
@@ -356,7 +360,7 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, res_path, t_
 
 
 
-def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, res_path, t_lim, t_lim_iter):
+def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, t_lim, t_lim_iter):
     #run the LNS algorithm
     #parameters: frac -  The fraction of visits that will be removed and reinserted for each iteration of local search.
     #bPath: benchmarks folder path
@@ -371,8 +375,9 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, res_path, t_lim, t_lim_it
     original_soln_file = bPath + '\\solution' + str(pInfo) + '.txt'
     original_file = bPath +'\\original' + str(pInfo) + '.txt'
 
-    #results path
-    res_path = 'LNS_Results.txt'
+    #results directory and path
+    Path(".\\LNS Results").mkdir(parents=True, exist_ok=True)
+    res_path = '.\\LNS Results\\LNS_Results' + pInfo +'.txt'
 
     #Read in MPP problem file
     f1 = open(MPP_file,'r')
@@ -429,12 +434,15 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, res_path, t_lim, t_lim_it
     global t_start
     global t_iter_start
 
+    #tracks if optimality has been reached
+    global optim_status
+    optim_status = False
     
 
     best_obj = Objective(cp.deepcopy(s_times),cp.deepcopy(orig_s_times))
     best_path = path
 
-    print('initial best obj', best_obj)
+    #print('initial best obj', best_obj)
     
     #start time
     t_start = time.time()
@@ -442,9 +450,9 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, res_path, t_lim, t_lim_it
     #iteration count
     i = 0
 
-    while time.time() < (t_start + t_lim):
+    while (time.time() < (t_start + t_lim) and optim_status == False):
     #get removed visits and the reduced path
-        print('iteration ' ,i)
+        #print('iteration ' ,i)
         
         cnt = countCustomers(best_path)
         
@@ -463,12 +471,13 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, res_path, t_lim, t_lim_it
         #update iteration count
         i += 1
     
-    print('best obj at end is ', best_obj)
+    #print('best obj at end is ', best_obj)
 
     f = open(res_path,'a')
     f.write('\n')
     f.write(('Best objective found: ' + str(round(best_obj,3))+'\n'))
     f.write('Best path found: \n')
+
 
     #write path:
     for i in range(nVeh):
@@ -499,10 +508,9 @@ if __name__ == '__main__':
                         help='the optimal solution, if available. If not provided, valued at 0. ')
     parser.add_argument('--optimality_gap', '-og', type=str, default = 0.0001, help = 'optimality gap, i.e 0.0001 is 0.01%.')
     parser.add_argument('--d', '-d', type=str, default = 5,
-                        help='parameter for limited discrepancy search')
-    parser.add_argument('--res_path', '-r', type=str, default = 'LNSresults.txt',
-                        help='Results file')
-    parser.add_argument('--t_lim', '-t', type=str, default = 6,
+                        help='parameter for limited discrepancy search, as per paper')
+
+    parser.add_argument('--t_lim', '-t', type=str, default = 120,
                         help='total time limit in seconds')
     parser.add_argument('--t_lim_iter', '-ti', type=str, default = 5,
                         help='iteration time limit in seconds')
@@ -514,7 +522,7 @@ if __name__ == '__main__':
 
     else:
         print('running LNS...')
-        soln = run_LNS(args.frac, args.benchmarks_dir, args.prob_info, args.nSwaps,int(args.d), float(args.optimal), float(args.optimality_gap), args.res_path, int(args.t_lim), int(args.t_lim_iter))
+        soln = run_LNS(args.frac, args.benchmarks_dir, args.prob_info, args.nSwaps,int(args.d), float(args.optimal), float(args.optimality_gap), int(args.t_lim), int(args.t_lim_iter))
 
 
 
