@@ -1,0 +1,4 @@
+solution_mip2_v1_c4_tw16_xy16_2
+1
+4
+3 2 1
