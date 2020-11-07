@@ -252,10 +252,10 @@ def main(argv):
     output_file = ""
     perturbated_file_name = ""
     perturbated_output_file = ""
-    help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -o <solution outputfile> ' \
+    help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
                    '-O <perturbed solution outputfile>'
     try:
-        opts, args = getopt.getopt(argv, "hi:I:o:O:", ["ifile=", "Ifile=", "ofile=", "Ofile"])
+        opts, args = getopt.getopt(argv, "hi:I:s:O:", ["ifile=", "Ifile=", "sfile=", "Ofile"])
     except getopt.GetoptError:
         print(help_message)
         sys.exit(2)
@@ -265,8 +265,8 @@ def main(argv):
             sys.exit()
         elif opt in ("-i", "--ifile"):
             file_name = arg
-        elif opt in ("-o", "--ofile"):
-            output_file = arg
+        elif opt in ("-s", "--sfile"):
+            solution_file = arg
         elif opt in ("-I", "--Ifile"):
             perturbated_file_name = arg
         elif opt in ("-O", "--Ofile"):
@@ -274,10 +274,11 @@ def main(argv):
 
     problem = VRPTW_util.VRPTWInstance.load(file_name)
     perturbated_problem = VRPTW_util.VRPTWInstance.load(perturbated_file_name)
+    solution_route = VRPTW_util.load_solution(solution_file)
     vehicles, nodes = problem.num_vehicles, len(problem.nodes)
 
     model, service_indicators, service_time, distance_map, time_window = model_initialization(problem)
-
+    '''
     original_p_start = time.perf_counter()
     model.optimize()
     original_p_end = time.perf_counter()
@@ -298,6 +299,15 @@ def main(argv):
     print_solution(output_file, problem, original_route)
     print("The optimal cost for the original VRPTW problem is {}".format(ori_opt_sol))
     print("The VRPTW optimizer took {} seconds".format(ori_run_time))
+    '''
+    # Service time of original solution
+    service_time_v = np.zeros((vehicles, nodes))
+    for k in range(vehicles):
+        curr_pos = DEPOT_INDEX
+        for pos in solution_route[k]:
+            service_time_v[k, pos] = service_time_v[k, curr_pos] + distance_map[curr_pos, pos]
+            curr_pos = pos
+        service_time_v[k, DEPOT_INDEX] = service_time_v[k, curr_pos] + distance_map[curr_pos, DEPOT_INDEX]
 
     # timewindow for perturbed problem
     new_time_window = [[], []]
@@ -337,7 +347,7 @@ def main(argv):
     model.setObjective(gp.quicksum(difference_in_travels), GRB.MINIMIZE)
 
     mpp_start = time.perf_counter()
-    mpp_opt_sol, mpp_opt_routes = backtrack_search(model, original_route, service_indicators, service_time,
+    mpp_opt_sol, mpp_opt_routes = backtrack_search(model, solution_route, service_indicators, service_time,
                                                    distance_map, new_time_window)
     mpp_end = time.perf_counter()
     mpp_run_time = mpp_end - mpp_start
@@ -348,10 +358,9 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    message = "backtrack_search.py -i problem1.txt -I perturbated_problem1.txt " \
-              "-o opt_original_solution.txt -O perturbed_opt_solution.txt"
-    #message = "backtrack_search.py -i benchmarks/original_v2_c16_tw4_xy16_0.txt -I benchmarks/perturbated1_v2_c16_tw4_xy16_0.txt " \
-              #"-o benchmarks/opt_original_solution.txt -O benchmarks/perturbed_opt_solution.txt"
+    message = "backtrack_search.py -i benchmarks/original_v2_c4_tw4_xy16_0.txt -I benchmarks/perturbated1_v2_c4_tw4_xy16_0.txt " \
+              "-s benchmarks/solution_v2_c4_tw4_xy16_0.txt -O perturbed_opt_solution.txt"
+
     main(message.split()[1:])
     #main(sys.argv[1:])
 
