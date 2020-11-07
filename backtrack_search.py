@@ -108,12 +108,13 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
 
         for i in range(nodes):
             # Timewindow Constraints
-            model.addConstr(
-                gp.quicksum(service_indicators[k, i, :].flatten()) * time_window[0][i] <= service_time[k, i],
-                "lb_twC^%g_%g" % (k, i))
-            model.addConstr(
-                gp.quicksum(service_indicators[k, i, :].flatten()) * time_window[1][i] >= service_time[k, i],
-                "ub_twC^%g_%g" % (k, i))
+            if i != DEPOT_INDEX:
+                model.addConstr(
+                    gp.quicksum(service_indicators[k, i, :].flatten()) * time_window[0][i] <= service_time[k, i],
+                    "lb_twC^%g_%g" % (k, i))
+                model.addConstr(
+                    gp.quicksum(service_indicators[k, i, :].flatten()) * time_window[1][i] >= service_time[k, i],
+                    "ub_twC^%g_%g" % (k, i))
 
             model.addConstr(gp.quicksum(service_indicators[k, i, :].flatten()) <= 1, "travel_limit")
             model.addConstr(gp.quicksum(service_indicators[k, :, i].flatten()) <= 1, "travel_limit")
@@ -325,7 +326,7 @@ def main(argv):
     # MPP solution
     difference_in_travels = []
     for k in range(vehicles):
-        for i in range(nodes):
+        for i in range(1, nodes):
             route_change_indicator = model.addVar(vtype=GRB.CONTINUOUS, name="change_ind^%g_%g" % (k, i))
             model.addConstr(service_time[k, i] - service_time_v[k, i] <= route_change_indicator,
                             "route_check^%g_%g" % (k, i))
