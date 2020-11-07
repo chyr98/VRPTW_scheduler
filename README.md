@@ -102,3 +102,14 @@ total cost: 34.17
 ```
 
 - output routes of vehicles and the starting time at each customer
+
+
+
+## MIP model
+
+run_MIP.py will search for all data instances in the benchmark folder that matches the "params" variable defined in the run_MIP.py file. Also it will save appropriate outputs to the folder "./mip_solution". If this folder does not exist, a new folder will be created.
+
+- Saves all solutions to "./mip_solution" as per format defined in https://gist.github.com/Kurorororo/21ccc9ecbea2191a52f62e4bed2224db
+- Saves all metrics and parameters to "./mip_solution/results.json"
+
+```python3 run_MIP.py```
