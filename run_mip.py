@@ -46,6 +46,7 @@ def get_time_for_sln(prob, sln):
             if last != -1:
                 total_time = last_time + prob.distance(last, 0)
                 text += ', 0: {:.2f}'.format(total_time)
+    print(time)
 
             #print(text)
         #print('total cost: {:.2f}'.format(time[0]))
@@ -77,32 +78,32 @@ def build_MIP(original_problem, original_solution, perturbated_problem, param):
     m = Model("VRPTW")
 
     num_vehicles = pert_prob.num_vehicles
-    num_nodes = len(pert_prob.nodes) + 1
+    num_nodes = len(pert_prob.nodes)
 
     x = m.binary_var_cube(num_nodes, num_nodes, num_vehicles, name="x")
 
-    lb = [pert_prob.nodes[i].a for i in range(num_nodes-1)] + [0]
-    ub = [pert_prob.nodes[i].b for i in range(num_nodes-1)] + [K]
+    lb = [pert_prob.nodes[i].a for i in range(num_nodes)] #+ [0]
+    ub = [pert_prob.nodes[i].b for i in range(num_nodes)] #+ [K]
 
 
     s = m.continuous_var_matrix(num_nodes, num_vehicles, lb=0, name="st")
 
 
     source_id = 0
-    sink_id = num_nodes-1
+    sink_id = 0
 
     for k in range(num_vehicles):
         m.add_constraint(
-            m.sum(x[(source_id,j,k)] for j in range(num_nodes)) == 1
+            m.sum(x[(source_id,j,k)] for j in range(1, num_nodes)) == 1
         )
 
     for k in range(num_vehicles):
         m.add_constraint(
-            m.sum(x[(i,sink_id,k)] for i in range(num_nodes)) == 1
+            m.sum(x[(i,sink_id,k)] for i in range(1, num_nodes)) == 1
         )
 
     for k in range(num_vehicles):
-        for i in range(1, num_nodes-1):
+        for i in range(1, num_nodes):
             m.add_constraint(
                 m.sum(x[(i,j,k)] for j in range(num_nodes)) == m.sum(x[(j,i,k)] for j in range(num_nodes))
             )
@@ -111,42 +112,46 @@ def build_MIP(original_problem, original_solution, perturbated_problem, param):
         for i in range(num_nodes):
             m.add_constraint(x[(i,i,k)] == 0)
 
-            m.add_constraint(x[(sink_id,i,k)] == 0)
-            m.add_constraint(x[(i, source_id, k)] == 0)
+           # m.add_constraint(x[(sink_id,i,k)] == 0)
+            #m.add_constraint(x[(i, source_id, k)] == 0)
 
 
-    for i in range(1, num_nodes-1):
+    for j in range(1, num_nodes):
+        m.add_constraint(
+            m.sum(x[(i,j,k)] for i in range(num_nodes) for k in range(num_vehicles)) == 1
+        )
+
+    for i in range(1, num_nodes):
         m.add_constraint(
             m.sum(x[(i,j,k)] for j in range(num_nodes) for k in range(num_vehicles)) == 1
         )
 
-
     for k in range(num_vehicles):
-        for i in range(num_nodes):
-            for j in range(num_nodes):
-                i_, j_ = i % (num_nodes - 1), j % (num_nodes - 1)
-                t_ij = abs(pert_prob.nodes[i_].distance(pert_prob.nodes[j_]))
-                m.add_constraint(
-                    s[(i,k)] - s[(j,k)] + t_ij <= (1-x[(i,j,k)]) * K
-                )
+        for i in range(1, num_nodes):
+            for j in range(1, num_nodes):
+
+                if i != j:
+                    t_ij = abs(pert_prob.nodes[i].distance(pert_prob.nodes[j]))
+                    m.add_constraint(
+                        s[(i,k)] - s[(j,k)] + t_ij <= (1-x[(i,j,k)]) * K
+                    )
 
     for k in range(num_vehicles):
         for i in range(num_nodes):
             #m.add_constraint(s[(i,k)] <= b[i] * m.sum(x[i,j,k] for j in range(num_nodes)) )
             m.add_constraint(s[(i,k)] >= lb[i] * m.sum(x[i,j,k] for j in range(num_nodes)) )
 
-            if i < sink_id:
-                m.add_constraint(s[(i,k)] <= ub[i] * m.sum(x[i,j,k] for j in range(num_nodes)))
+            #if i < sink_id:
+            m.add_constraint(s[(i,k)] <= ub[i] * m.sum(x[i,j,k] for j in range(num_nodes)))
 
 
-    m.minimize(m.sum(m.abs(s[(i,k)] - orig_st[k][i]) for i in range(num_nodes-1) for j in range(num_vehicles)))
+    m.minimize(m.sum(m.abs(s[(i,k)] - orig_st[k][i]) for i in range(num_nodes) for k in range(num_vehicles)))
 
 
     return m, lb, ub
 
 
-
-def traverse_path(mat, li, i = 0):
+def traverse_path(mat, li, i = 0, left=False):
     """
         Traverses (recursively) through path defined in mat
 
@@ -164,11 +169,11 @@ def traverse_path(mat, li, i = 0):
         list of all historical nodes traveled
     """
 
-    if not len(np.where(mat[i])[0]):
-        return li
     i = np.where(mat[i])[0][0]
+    if left and i == 0:
+        return li
     li.append(i)
-    return traverse_path(mat, li, i)
+    return traverse_path(mat, li, i, left=True)
 
 
 def run_MIP(params):
@@ -236,6 +241,8 @@ def run_MIP(params):
                 paths = list(map(str, traverse_path(x, [])))
                 line = " ".join(paths)
                 f.writelines(str(line) + "\n")
+
+        print(pert_st)
 
     return results
 
