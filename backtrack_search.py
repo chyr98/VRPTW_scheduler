@@ -308,6 +308,8 @@ def main(argv):
             service_time_v[k, pos] = service_time_v[k, curr_pos] + distance_map[curr_pos, pos]
             curr_pos = pos
         service_time_v[k, DEPOT_INDEX] = service_time_v[k, curr_pos] + distance_map[curr_pos, DEPOT_INDEX]
+        # Add the DEPOT_INDEX at the end of routes for each vehicle, since every vehicle will travel back to depot
+        solution_route[k].append(DEPOT_INDEX)
 
     # timewindow for perturbed problem
     new_time_window = [[], []]
@@ -358,8 +360,8 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    message = "backtrack_search.py -i benchmarks/original_v2_c4_tw4_xy16_0.txt -I benchmarks/perturbated1_v2_c4_tw4_xy16_0.txt " \
-              "-s benchmarks/solution_v2_c4_tw4_xy16_0.txt -O perturbed_opt_solution.txt"
+    message = "backtrack_search.py -i benchmarks/original_v2_c4_tw4_xy16_3.txt -I benchmarks/perturbated1_v2_c4_tw4_xy16_3.txt " \
+              "-s benchmarks/solution_v2_c4_tw4_xy16_3.txt -O perturbed_opt_solution.txt"
 
     #main(message.split()[1:])
     main(sys.argv[1:])
