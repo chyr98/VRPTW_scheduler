@@ -5,6 +5,10 @@
   },
   {
     "name": "LNS",
-    "cmd": "python3.8 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --perturbated-solution {perturbated_solution} --output {output} --t_lim 295"
+    "cmd": "python3.8 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --perturbated-solution {perturbated_solution} --output {output} --t_lim 55"
+  },
+  {
+    "name": "MIP",
+    "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output}"
   }
 ]
