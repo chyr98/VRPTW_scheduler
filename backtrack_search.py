@@ -361,6 +361,6 @@ if __name__ == '__main__':
     message = "backtrack_search.py -i benchmarks/original_v2_c4_tw4_xy16_0.txt -I benchmarks/perturbated1_v2_c4_tw4_xy16_0.txt " \
               "-s benchmarks/solution_v2_c4_tw4_xy16_0.txt -O perturbed_opt_solution.txt"
 
-    main(message.split()[1:])
-    #main(sys.argv[1:])
+    #main(message.split()[1:])
+    main(sys.argv[1:])
 

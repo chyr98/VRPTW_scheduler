@@ -2,5 +2,9 @@
   {
     "name": "backtrack",
     "cmd": "python3.8 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output}"
+  },
+  {
+    "name": "LNS",
+    "cmd": "python3.8 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --perturbated-solution {perturbated_solution} --output {output} --t_lim 295"
   }
 ]

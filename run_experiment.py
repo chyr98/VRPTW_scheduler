@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import shutil
 import time
 from typing import Any, Dict, List, Tuple, Optional
 
@@ -46,7 +47,10 @@ def service_time_difference(original_problem: util.VRPTWInstance,
 
 def run_process(run_id: int, method: str, cmd: str, problem: str,
                 output_dir: str, timeout: int) -> Dict[str, Any]:
-    os.makedirs(output_dir, exist_ok=True)
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)
+
+    os.makedirs(output_dir)
     result = {'run_id': run_id, 'methods': method, 'output_dir': output_dir}
     params = parse_params(problem)
 
@@ -59,6 +63,8 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
         original_problem = os.path.join(benchmark_dir, original_problem_name)
         original_solution_name = 'solution_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.txt'.format(**params)
         original_solution = os.path.join(benchmark_dir, original_solution_name)
+        perturbated_solution_name = 'perturbated{num_perturbations}_solution_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.txt'.format(**params)
+        perturbated_solution = os.path.join(benchmark_dir, perturbated_solution_name)
 
         if not os.path.exists(original_problem):
             result['error'] = 'the original problem does not exist'
@@ -70,12 +76,13 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
                 **{'original_problem': original_problem,
                    'original_solution': original_solution,
                    'perturbated_problem': problem,
+                   'perturbated_solution': perturbated_solution,
                    'output': output_file})
             start = time.perf_counter()
             try:
                 subprocess.run(cmd_to_run.split(), timeout=timeout)
             except Exception as e:
-                result['error'] = e
+                result['error'] = str(e)
             end = time.perf_counter()
 
             if os.path.exists(output_file):
