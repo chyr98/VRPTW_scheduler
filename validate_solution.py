@@ -13,6 +13,7 @@ if __name__ == '__main__':
     problem = util.VRPTWInstance.load(args.problem)
     routes = util.load_solution(args.solution)
     result = problem.get_time(routes)
+    total_cost = 0.0
 
     if result is None:
         print('invalid solution')
@@ -24,7 +25,7 @@ if __name__ == '__main__':
             last_time = 0.0
 
             for c in r:
-                t = result[1][c][1]
+                t = result[c][1]
                 text += ', {}: {:.2f}'.format(c, t)
                 last = c
                 last_time = t
@@ -32,7 +33,8 @@ if __name__ == '__main__':
             if last != -1:
                 total_time = last_time + problem.distance(last, 0)
                 text += ', 0: {:.2f}'.format(total_time)
+                total_cost += total_time
 
             print(text)
 
-        print('total cost: {:.2f}'.format(result[0]))
+        print('total cost: {:.2f}'.format(total_time))
