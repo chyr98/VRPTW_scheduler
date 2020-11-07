@@ -71,8 +71,8 @@ class VRPTWInstance:
         """
         The distance between two nodes
 
-        :param a: a node
-        :param b: a node
+        :param i: index of starting node
+        :param j: index of destination node
         :return: the distance
         """
         return self.nodes[i].distance(self.nodes[j])
