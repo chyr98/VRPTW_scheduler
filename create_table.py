@@ -82,7 +82,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', '-i', type=str, required=True)
     parser.add_argument('--methods', '-m', type=str, nargs='+',
-                        default=['backtrack', 'LNS'])
+                        default=['backtrack', 'MIP', 'LNS'])
     parser.add_argument('--params', '-p', type=str, nargs='+',
                         default=['num_vehicles', 'num_perturbations'])
     parser.add_argument('--fields', '-f', type=str, nargs='+',
