@@ -1,0 +1,6 @@
+[
+  {
+    "name": "backtrack",
+    "cmd": "python3.8 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output}"
+  }
+]
