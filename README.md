@@ -113,3 +113,20 @@ run_MIP.py will search for all data instances in the benchmark folder that match
 - Saves all metrics and parameters to "./mip_solution/results.json"
 
 ```python3 run_MIP.py```
+
+
+
+## Backtrack Search Model
+
+backtrack_search.py takes four command line arguments:
+
+- The path to the file that stores the original VRPTW problem
+- The path to the file that stores the perturbed problem
+- The path to the solution file of the original problem
+- The path of the output file that stores the solution of MPP
+
+For output, the program will print out the optimal cost of MPP and running time in command line.
+Solution route for MPP will be written into the file with the given path
+
+```python3 backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> -O <perturbed solution outputfile>```
+
