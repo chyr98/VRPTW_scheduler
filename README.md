@@ -114,6 +114,7 @@ run_MIP.py will search for all data instances in the benchmark folder that match
 
 ```python3 run_MIP.py```
 
+This depends on numpy, CPLEX, and docplex.
 
 
 ## Backtrack Search Model
@@ -130,3 +131,48 @@ Solution route for MPP will be written into the file with the given path
 
 ```python3 backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> -O <perturbed solution outputfile>```
 
+This depends on Gurobi and gurobipy.
+
+## Experiments
+
+```
+python3 run_experiment.py \
+  -b preliminary_benchmarks \
+  -t 180 \
+  -o results \
+  -w 1 \
+  -m methods.json \
+  -n 1
+```
+
+- `-b`: the directory containing a benchmark set
+- `-t`: the time limit
+- `-o`: the directory to save the results
+  - `results/result.json` is generated if `-o results`
+- `-w`: the number of processes to run in parallel
+- `-m`: a JSON file describing the methods
+- `-n`: the number of runs
+
+### A JSON File for the Mehtod
+The file contains a list of mehtods.
+"name" specifies the name of the method.
+"cmd" specifies the command to run.
+`{original_problme}`, `{perturbated_problem}`, `{original_solution}`, and `{output}` are automatically replaced by appropriate file names by `run_experiment.py`.
+
+
+```json
+[
+  {
+    "name": "backtrack",
+    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost}"
+  },
+  {
+    "name": "LNS",
+    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --perturbated-solution {perturbated_solution} --output {output} --cost {cost} --t_lim 178"
+  },
+  {
+    "name": "MIP",
+    "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost}"
+  }
+]
+```
