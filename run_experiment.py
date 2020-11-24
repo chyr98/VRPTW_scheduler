@@ -72,12 +72,14 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
             result['error'] = 'the original solution does not exist'
         else:
             output_file = os.path.join(output_dir, 'solution.txt')
+            cost_file = os.path.join(output_dir, 'cost.txt')
             cmd_to_run = cmd.format(
                 **{'original_problem': original_problem,
                    'original_solution': original_solution,
                    'perturbated_problem': problem,
                    'perturbated_solution': perturbated_solution,
-                   'output': output_file})
+                   'output': output_file,
+                   'cost': cost_file})
             start = time.perf_counter()
             try:
                 subprocess.run(cmd_to_run.split(), timeout=timeout)
@@ -85,15 +87,12 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
                 result['error'] = str(e)
             end = time.perf_counter()
 
-            if os.path.exists(output_file):
+            if os.path.exists(cost_file):
                 result['solved'] = 1
                 result['time'] = end - start
-                problem1 = util.VRPTWInstance.load(original_problem)
-                problem2 = util.VRPTWInstance.load(problem)
-                routes1 = util.load_solution(original_solution)
-                routes2 = util.load_solution(output_file)
-                result['cost'] = service_time_difference(
-                    problem1, routes1, problem2, routes2)
+
+                with open(cost_file) as f:
+                    result['cost'] = float(f.read().rstrip())
             else:
                 result['solved'] = 0
 

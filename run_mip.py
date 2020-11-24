@@ -247,7 +247,7 @@ def run_MIP(params):
     return results
 
 
-def solve_one_problem(original_problem, original_solution, perturbated_problem, output):
+def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost):
     pattern = re.compile(r'perturbated(?P<p>\d+)_v(?P<v>\d+)_c(?P<c>\d+)_tw(?P<tw>\d+)_xy(?P<xy>\d+)_(?P<id>\d+)\.txt')
     m = pattern.match(os.path.basename(perturbated_problem))
     prob_num = int(m.group('p'))
@@ -278,6 +278,9 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
             line = " ".join(paths)
             f.writelines(str(line) + "\n")
 
+    with open(cost, "w") as f:
+        f.write(str(m.objective_value) + '\n')
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -285,6 +288,7 @@ if __name__ == "__main__":
     parser.add_argument('--original-solution', type=str, required=True)
     parser.add_argument('--perturbated-problem', type=str, required=True)
     parser.add_argument('--output', type=str, required=True)
+    parser.add_argument('--cost', type=str, required=True)
     args = parser.parse_args()
 
-    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output)
+    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost)

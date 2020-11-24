@@ -253,10 +253,11 @@ def main(argv):
     output_file = ""
     perturbated_file_name = ""
     perturbated_output_file = ""
+    cost_file = ""
     help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
-                   '-O <perturbed solution outputfile>'
+                   '-O <perturbed solution outputfile> -c <cost file>'
     try:
-        opts, args = getopt.getopt(argv, "hi:I:s:O:", ["ifile=", "Ifile=", "sfile=", "Ofile"])
+        opts, args = getopt.getopt(argv, "hi:I:s:O:c:", ["ifile=", "Ifile=", "sfile=", "Ofile", "cfile"])
     except getopt.GetoptError:
         print(help_message)
         sys.exit(2)
@@ -272,6 +273,8 @@ def main(argv):
             perturbated_file_name = arg
         elif opt in ("-O", "--Ofile"):
             perturbated_output_file = arg
+        elif opt in ("-c", "--cfile"):
+            cost_file = arg
 
     problem = VRPTW_util.VRPTWInstance.load(file_name)
     perturbated_problem = VRPTW_util.VRPTWInstance.load(perturbated_file_name)
@@ -358,6 +361,9 @@ def main(argv):
     print_solution(perturbated_output_file, perturbated_problem, mpp_opt_routes)
     print("The optimal cost for the MPP is {}".format(mpp_opt_sol))
     print("The MPP optimizer took {} seconds".format(mpp_run_time))
+
+    with open(cost_file, "w") as f:
+        f.write(str(mpp_opt_sol) + '\n')
 
 
 if __name__ == '__main__':

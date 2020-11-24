@@ -361,7 +361,7 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, output_file,
 
 
 
-def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, output_file, d, optimal, og, t_lim, t_lim_iter):
+def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, output_file, cost_file, d, optimal, og, t_lim, t_lim_iter):
     #run the LNS algorithm
     #parameters: frac -  The fraction of visits that will be removed and reinserted for each iteration of local search.
 
@@ -474,6 +474,8 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, ou
     
     #f.write('--------------------------\n')
 
+    with open(cost_file, 'w') as f:
+        f.write(str(best_obj) + '\n')
     
 
     #TO DO: check copy for all list args. CData is OK since not modified.
@@ -492,6 +494,7 @@ if __name__ == '__main__':
     parser.add_argument('--perturbated-problem', type=str, required=True)
     parser.add_argument('--perturbated-solution', type=str, required=True)
     parser.add_argument('--output', type=str, required=True)
+    parser.add_argument('--cost', type=str, required=True)
     parser.add_argument('--optimal', '-o', type=str, default = 0,
                         help='the optimal solution, if available. If not provided, valued at 0. ')
     parser.add_argument('--optimality_gap', '-og', type=str, default = 0.0001, help = 'optimality gap, i.e 0.0001 is 0.01%.')
@@ -510,7 +513,7 @@ if __name__ == '__main__':
 
     else:
         print('running LNS...')
-        soln = run_LNS(args.frac, args.original_problem, args.original_solution, args.perturbated_problem, args.perturbated_solution, args.output, int(args.d), float(args.optimal), float(args.optimality_gap), int(args.t_lim), int(args.t_lim_iter))
+        soln = run_LNS(args.frac, args.original_problem, args.original_solution, args.perturbated_problem, args.perturbated_solution, args.output, args.cost, int(args.d), float(args.optimal), float(args.optimality_gap), int(args.t_lim), int(args.t_lim_iter))
 
 
 
