@@ -142,6 +142,7 @@ python3 run_experiment.py \
   -o results \
   -w 1 \
   -m methods.json \
+  -n 1
 ```
 
 - `-b`: the directory containing a benchmark set
@@ -150,6 +151,7 @@ python3 run_experiment.py \
   - `results/result.json` is generated if `-o results`
 - `-w`: the number of processes to run in parallel
 - `-m`: a JSON file describing the methods
+- `-n`: the number of runs
 
 ### A JSON File for the Mehtod
 The file contains a list of mehtods.
@@ -162,15 +164,15 @@ The file contains a list of mehtods.
 [
   {
     "name": "backtrack",
-    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output}"
+    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost}"
   },
   {
     "name": "LNS",
-    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --perturbated-solution {perturbated_solution} --output {output} --t_lim 178"
+    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --perturbated-solution {perturbated_solution} --output {output} --cost {cost} --t_lim 178"
   },
   {
     "name": "MIP",
-    "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output}"
+    "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost}"
   }
 ]
 ```
