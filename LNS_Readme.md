@@ -7,6 +7,7 @@ Instructions to run the LNS code:
 --intermediate-output: Filepath for intermediate output
 
 ## Output format:
+
 Time since start (in seconds)
 Best objective found so far
 ---------
@@ -20,7 +21,7 @@ Best objective found so far
 
 
 
-
+## OLD Instructions
 
 
 
