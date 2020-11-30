@@ -301,6 +301,7 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, output_file,
    global t_start
    global t_iter_start
    global optim_status
+   global intermediate_file
 
    t= time.time()
 
@@ -311,8 +312,18 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, output_file,
             best_obj = res
             best_path = red_path
 
+
+
+            f = open(intermediate_file,'a')
+            f.write(str(round((t-t_start),3)) + '\n')
+            f.write(str(round(best_obj,3)) + '\n')
+            f.write('-------------- \n')
+
             #print('------------------NEW BEST OBJ FOUND:' , best_obj)
             #print('------------------NEW BEST Path FOUND: \n' , best_path)
+
+
+
 
             #Check if within optimality gap
             d_optimal = abs(optimal-res)
@@ -361,7 +372,7 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, output_file,
 
 
 
-def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, output_file, cost_file, d, optimal, og, t_lim, t_lim_iter):
+def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, output_file, cost_file, d, optimal, og, t_lim, t_lim_iter, int_file):
     #run the LNS algorithm
     #parameters: frac -  The fraction of visits that will be removed and reinserted for each iteration of local search.
 
@@ -405,6 +416,10 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, ou
     #get original paths/routes, same data form as the candidate routes
     original_path = readPath(original_soln_file,nVeh)
 
+    #set up log file to track each new (intermediate) best objective
+    f_intermediate = open(int_file,'w')
+    f_intermediate.close()
+
     #get a list of parameters for each visit in the routes [[customer number, vehichle served by, service time],...]
     all_visits = makeVisitData(cp.deepcopy(path),cData)
     original_visits = makeVisitData(cp.deepcopy(original_path), orig_cData)
@@ -420,6 +435,8 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, ou
     global best_obj
     global t_start
     global t_iter_start
+    global intermediate_file
+    intermediate_file = int_file
 
     #tracks if optimality has been reached
     global optim_status
@@ -495,6 +512,7 @@ if __name__ == '__main__':
     parser.add_argument('--perturbated-solution', type=str, required=True)
     parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--cost', type=str, required=True)
+    parser.add_argument('--intermediate-output', type=str, required=True, help='File path where intermediate results will be written')
     parser.add_argument('--optimal', '-o', type=str, default = 0,
                         help='the optimal solution, if available. If not provided, valued at 0. ')
     parser.add_argument('--optimality_gap', '-og', type=str, default = 0.0001, help = 'optimality gap, i.e 0.0001 is 0.01%.')
@@ -513,7 +531,7 @@ if __name__ == '__main__':
 
     else:
         print('running LNS...')
-        soln = run_LNS(args.frac, args.original_problem, args.original_solution, args.perturbated_problem, args.perturbated_solution, args.output, args.cost, int(args.d), float(args.optimal), float(args.optimality_gap), int(args.t_lim), int(args.t_lim_iter))
+        soln = run_LNS(args.frac, args.original_problem, args.original_solution, args.perturbated_problem, args.perturbated_solution, args.output, args.cost, int(args.d), float(args.optimal), float(args.optimality_gap), int(args.t_lim), int(args.t_lim_iter), args.intermediate_output)
 
 
 
