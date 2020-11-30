@@ -8,9 +8,9 @@ Instructions to run the LNS code:
 
 ## Output format:
 --------
-Time since start (in seconds)
-Best objective found so far
-*repeat each time better objective is found.
+Time since start (in seconds)  
+Best objective found so far  
+*repeat each time better objective is found.  
 
 
 
