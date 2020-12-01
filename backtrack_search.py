@@ -4,6 +4,7 @@ import VRPTW_util
 import copy
 import time
 import sys, getopt
+import json
 
 import gurobipy as gp
 from gurobipy import GRB
@@ -139,7 +140,7 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
     return model, service_indicators, service_time, distance_map, time_window
 
 
-def print_solution(route_output_file, problem, cost_output_file, route, cost):
+def print_solution(route_output_file, problem, cost_output_file, route, performance):
     vehicles, customers = problem.num_vehicles, len(problem.nodes)
     f = open(route_output_file, "w")
 
@@ -154,9 +155,8 @@ def print_solution(route_output_file, problem, cost_output_file, route, cost):
 
     f.close()
 
-    f = open(cost_output_file, "w")
-    f.write(str(cost))
-    f.close()
+    with open(cost_output_file, 'w') as f:
+        json.dump(performance, f)
 
 
 def main(argv, hint=False):
@@ -165,10 +165,11 @@ def main(argv, hint=False):
     perturbated_file_name = ""
     perturbated_output_file = ""
     cost_output_file = ""
+    max_run_time = 30
     help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
-                   '-O <perturbed solution outputfile> -c <cost outputfile>'
+                   '-O <perturbed solution outputfile> -c <cost outputfile> -t <time limit>'
     try:
-        opts, args = getopt.getopt(argv, "hi:I:s:O:c:", ["ifile=", "Ifile=", "sfile=", "Ofile=", "cost="])
+        opts, args = getopt.getopt(argv, "hi:I:s:O:c:t:", ["ifile=", "Ifile=", "sfile=", "Ofile=", "cost=", "time="])
     except getopt.GetoptError:
         print(help_message)
         sys.exit(2)
@@ -186,6 +187,8 @@ def main(argv, hint=False):
             perturbated_output_file = arg
         elif opt in ("-c", "--cost"):
             cost_output_file = arg
+        elif opt in ("-t", "--time"):
+            max_run_time = int(arg)
 
     problem = VRPTW_util.VRPTWInstance.load(file_name)
     perturbated_problem = VRPTW_util.VRPTWInstance.load(perturbated_file_name)
@@ -208,12 +211,12 @@ def main(argv, hint=False):
     for k in range(vehicles):
         curr_pos = DEPOT_INDEX
         if hint:
-            hint_pri = nodes
+            hint_pri = len(solution_route[k])
         for pos in solution_route[k]:
             service_time_v[k, pos] = max(service_time_v[k, curr_pos] + distance_map[curr_pos, pos], original_time_window[0][pos])
 
             # Use the original route as a hint for the mpp route
-            if hint:
+            if hint_pri > 0 and hint:
                 service_indicators[k, curr_pos, pos].setAttr(GRB.Attr.VarHintVal, 1.0)
                 service_indicators[k, curr_pos, pos].setAttr(GRB.Attr.VarHintPri, hint_pri)
 
@@ -238,14 +241,29 @@ def main(argv, hint=False):
     model.setObjective(gp.quicksum(difference_in_travels), GRB.MINIMIZE)
     model.update()
 
-    mpp_start = time.perf_counter()
+    time_limit = 0
+    mpp_run_time = 0
+    performance = {"cost": [], "time": []}
+    while mpp_run_time >= time_limit and time_limit <= max_run_time:
+        time_limit = time_limit + 10
 
-    model.optimize()
-    mpp_opt_sol = model.objVal
+        mpp_start = time.perf_counter()
+        model.reset()
+        model.setParam("TimeLimit", time_limit)
+        model.optimize()
 
-    mpp_end = time.perf_counter()
-    mpp_run_time = mpp_end - mpp_start
-    service_time_v = np.array([v.x for v in service_time.flatten()]).reshape((vehicles, nodes))
+        if model.MIPGap != GRB.INFINITY:
+            mpp_opt_sol = model.objVal
+            performance["cost"].append(mpp_opt_sol)
+            print("The optimal cost for the MPP is {}".format(mpp_opt_sol))
+            print("The MPP optimizer took {} seconds".format(mpp_run_time))
+        else:
+            performance["cost"].append("--")
+        performance["time"].append(time_limit)
+
+        mpp_end = time.perf_counter()
+        mpp_run_time = mpp_end - mpp_start
+
     service_indicators_v = np.array([v.x for v in service_indicators.flatten()]).reshape((vehicles, nodes, nodes))
 
     mpp_opt_routes = [[] for _ in range(vehicles)]
@@ -255,15 +273,13 @@ def main(argv, hint=False):
             mpp_opt_routes[k].append(curr_pos)
             curr_pos = np.argmax(service_indicators_v[k, curr_pos, :])
 
-    print_solution(perturbated_output_file, perturbated_problem, cost_output_file, mpp_opt_routes, mpp_opt_sol)
-    # print("The optimal cost for the MPP is {}".format(mpp_opt_sol))
-    # print("The MPP optimizer took {} seconds".format(mpp_run_time))
+    print_solution(perturbated_output_file, perturbated_problem, cost_output_file, mpp_opt_routes, performance)
 
 
 if __name__ == '__main__':
-    #message = "backtrack_search.py -i benchmarks/original_v4_c16_tw16_xy16_0.txt -I benchmarks/perturbated4_v4_c16_tw16_xy16_0.txt " \
-    #          "-s benchmarks/solution_v4_c16_tw16_xy16_0.txt -O perturbed_opt_solution.txt -c opt_cost.txt"
+    #message = "backtrack_search.py -i benchmarks/original_v4_c64_tw16_xy16_0.txt -I benchmarks/perturbated4_v4_c64_tw16_xy16_0.txt " \
+    #          "-s benchmarks/solution_v4_c64_tw16_xy16_0.txt -O perturbed_opt_solution.txt -c opt_cost.txt -t 180"
 
-    #main(message.split()[1:], True)
-    main(sys.argv[1:], True)
+    #main(message.split()[1:], hint=True)
+    main(sys.argv[1:], hint=True)
 
