@@ -263,6 +263,9 @@ def ChooseVisit(r_path, rem_vs, orig_s_times,cData,d):
     P = None
     v_ind = None
 
+    #A second max min cost in case of infeasibility
+    inf_max_tot = 0
+
     #Big M constant:
     M = (len(cData)**2)*16
 
@@ -313,15 +316,26 @@ def ChooseVisit(r_path, rem_vs, orig_s_times,cData,d):
                 P = f_pts[0:d]
                 max_min_cost_tot = max_min_cost
 
+            if not feasible_found:
+
+                if max_min_cost > inf_max_tot:
+                    v_inf = rem_vs[i][0]
+                    v_ind_inf = i
+                    P_inf = f_pts[0:d]
+
+
+                    inf_max_tot = max_min_cost
+
     #if no feasible solutions found yet, chose an arbitrary variable:
-    if not feasible_found:    
-        if v == None:
-            v = rem_vs[i][0]
-            v_ind = i
-            P = f_pts[0:d]
+    
+    #If any routes giving feasibility exist - return those. Otherwise, branch on an infeasible route.
 
-    return (v, v_ind, P)
+    if feasible_found or v != None:
+        return (v, v_ind, P)
+    else:
+        return(v_inf, v_ind_inf, P_inf)
 
+    
     
     
 
