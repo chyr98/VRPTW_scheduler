@@ -464,17 +464,20 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, output_file,
             M = len(cData)*len(cData)*16
             if best_obj < M:
                 feasible_found = True
-                print('feasible found at ', str(t-t_start))
+                #print('feasible found at ', str(t-t_start))
 
             
-            f = open(intermediate_file,'a')
-            f.write(("feasible solution found: " + str(feasible_found) + '\n'))
-            f.write(str(round((t-t_start),3)) + '\n')
-            f.write(str(round(best_obj,3)) + '\n')
-            f.write('-------------- \n')
+            #write intermediate results if feasible solution found:
 
-            print('------------------NEW BEST OBJ FOUND:' , best_obj)
-            print('------------------NEW BEST Path FOUND: \n' , best_path)
+            if feasible_found == True:
+                f = open(intermediate_file,'a')
+                #f.write(("feasible solution found: " + str(feasible_found) + '\n'))
+                f.write(str(round((t-t_start),3)) + '\n')
+                f.write(str(round(best_obj,3)) + '\n')
+                f.write('-------------- \n')
+
+            #print('------------------NEW BEST OBJ FOUND:' , best_obj)
+            #print('------------------NEW BEST Path FOUND: \n' , best_path)
 
 
 
@@ -607,7 +610,7 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, ou
     
 
     best_obj = float('inf')
-    print('initial best obj ', best_obj)
+    #print('initial best obj ', best_obj)
 
     best_path = path
 
@@ -658,10 +661,11 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, ou
     #f.write('--------------------------\n')
 
     with open(cost_file, 'w') as f:
-        f.write(str(best_obj) + '\n')
+        #Only write to cost_file if solution is feasible
+        if feasible_found == True:
+            f.write(str(best_obj) + '\n')
     
 
-    #TO DO: check copy for all list args. CData is OK since not modified.
 
     soln = []
     return soln
