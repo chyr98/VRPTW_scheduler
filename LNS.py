@@ -654,8 +654,10 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, ou
     f.write(str(nVeh) + '\n')
 
     #write path:
-    for i in range(nVeh):
-       f.write(' '.join([str(r) for r in best_path[i]])+'\n')
+    #only write if there is a feasible solution
+    if feasible_found == True:
+       for i in range(nVeh):
+         f.write(' '.join([str(r) for r in best_path[i]])+'\n')
             
     
     #f.write('--------------------------\n')
