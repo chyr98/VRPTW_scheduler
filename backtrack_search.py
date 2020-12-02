@@ -244,8 +244,8 @@ def main(argv, hint=False):
     time_limit = 0
     mpp_run_time = 0
     performance = {"cost": [], "time": []}
-    while mpp_run_time >= time_limit and time_limit <= max_run_time:
-        time_limit = time_limit + 10
+    while mpp_run_time >= time_limit and time_limit < max_run_time:
+        time_limit = min(time_limit + 10, max_run_time)
 
         mpp_start = time.perf_counter()
         model.reset()
@@ -255,14 +255,12 @@ def main(argv, hint=False):
         if model.MIPGap != GRB.INFINITY:
             mpp_opt_sol = model.objVal
             performance["cost"].append(mpp_opt_sol)
-            print("The optimal cost for the MPP is {}".format(mpp_opt_sol))
-            print("The MPP optimizer took {} seconds".format(mpp_run_time))
         else:
             performance["cost"].append("--")
-        performance["time"].append(time_limit)
 
         mpp_end = time.perf_counter()
         mpp_run_time = mpp_end - mpp_start
+        performance["time"].append(min(time_limit, mpp_run_time))
 
     service_indicators_v = np.array([v.x for v in service_indicators.flatten()]).reshape((vehicles, nodes, nodes))
 
