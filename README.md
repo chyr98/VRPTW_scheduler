@@ -121,17 +121,20 @@ In addition, for each input parameter set, cost improvement over time is tracked
 
 ## Backtrack Search Model
 
-backtrack_search.py takes four command line arguments:
+backtrack_search.py takes six command line arguments:
 
 - The path to the file that stores the original VRPTW problem
 - The path to the file that stores the perturbed problem
 - The path to the solution file of the original problem
 - The path of the output file that stores the solution of MPP
+- The path of the output file that stores the set of costs at different time steps.
+- The time limit for each optimization
 
-For output, the program will print out the optimal cost of MPP and running time in command line.
-Solution route for MPP will be written into the file with the given path
+Solution route for MPP will be written into the solution file with the given path
+Costs vs time steps will be written into the cost file with the given path in the following format
+  {"cost": [cost1, cost2, ..., costn], "time": [10, 20, ..., time_limit]}
 
-```python3 backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> -O <perturbed solution outputfile>```
+```python3 backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> -O <perturbed solution outputfile> -c <cost file> -t <time limit>```
 
 This depends on Gurobi and gurobipy.
 
