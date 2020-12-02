@@ -116,6 +116,8 @@ run_MIP.py will search for all data instances in the benchmark folder that match
 
 This depends on numpy, CPLEX, and docplex.
 
+In addition, for each input parameter set, cost improvement over time is tracked and the data points are saved in ./mip_solutions folder as a JSON object. An example output can be found at ./mip_solutions/mip_results8_v4_c16_tw4_xy16_0.json
+
 
 ## Backtrack Search Model
 
