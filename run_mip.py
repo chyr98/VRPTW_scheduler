@@ -6,7 +6,6 @@ from os.path import isfile, join
 import re
 import time
 
-
 import random
 import numpy as np
 from docplex.mp.model import Model
@@ -18,6 +17,41 @@ SAVEFOLDERPATH = "./mip_solutions/"
 BENCHPATH = "./benchmarks/"
 
 K = 99999
+
+from docplex.mp.progress import SolutionRecorder
+
+class MyProgressListener(SolutionRecorder):
+    def __init__(self, model):
+        SolutionRecorder.__init__(self)
+        self.costs = []
+        self.times = []
+        self.current_objective = 999999
+
+    def notify_start(self):
+        super(SolutionRecorder, self).notify_start()
+        self.last_obj = None
+        self.st = time.time()
+
+    def is_improving(self, new_obj, eps=1e-8):
+        last_obj = self.last_obj
+        return last_obj is None or (abs(new_obj- last_obj) >= eps)
+
+    def notify_solution(self, s):
+        SolutionRecorder.notify_solution(self, s)
+        if s.has_objective() and self.is_improving(s.get_objective_value()):
+            self.last_obj = s.get_objective_value()
+            print('----> #new objective={0}'.format(self.last_obj))
+            self.costs.append(s.get_objective_value())
+            self.times.append(time.time()-self.st)
+
+    def write_to_file(self, filename):
+        data = {"cost":self.costs, "time":self.times}
+        # Create folder to store all outputs
+        if not os.path.exists(SAVEFOLDERPATH):
+            os.makedirs(SAVEFOLDERPATH)
+        with open(SAVEFOLDERPATH+filename+'.json', 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
 
 def get_time_for_sln(prob, sln):
 
@@ -248,6 +282,7 @@ def run_MIP(params):
 
 
 def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost):
+
     pattern = re.compile(r'perturbated(?P<p>\d+)_v(?P<v>\d+)_c(?P<c>\d+)_tw(?P<tw>\d+)_xy(?P<xy>\d+)_(?P<id>\d+)\.txt')
     m = pattern.match(os.path.basename(perturbated_problem))
     prob_num = int(m.group('p'))
@@ -258,17 +293,24 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
     map_size = int(m.group('xy'))
     params = prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size
 
+
+    mdl, _, _ = build_MIP(original_problem, original_solution, perturbated_problem, params)
+
+    listener = MyProgressListener(mdl)
+    mdl.add_progress_listener(listener)
+    mdl.solve(log_output=True)
+
+    listener.costs.append(mdl.objective_value)
+    listener.times.append(time.time()-listener.st)
+
+
+    # # Get values for decision variables used in the model
+    # pert_x = [[[mdl.get_var_by_name("x_{}_{}_{}".format(i,j,k)).solution_value for j in range(num_nodes)] for i in range(num_nodes)] for k in range(num_vehicles)]
+
+
     prob_name = "{}{}" + "_v{}_c{}_tw{}_xy{}_".format(num_vehicles, num_nodes, time_window, map_size) + "{}"
 
-    m, _, _ = build_MIP(original_problem, original_solution, perturbated_problem, params)
-    m.solve(log_output=True)
-
-    # Get values for decision variables used in the model
-    pert_x = [[[m.get_var_by_name("x_{}_{}_{}".format(i,j,k)).solution_value for j in range(num_nodes)] for i in range(num_nodes)] for k in range(num_vehicles)]
-
-    # Create folder to store all outputs
-    if not os.path.exists(SAVEFOLDERPATH):
-        os.makedirs(SAVEFOLDERPATH)
+    listener.write_to_file(prob_name.format("mip_results", prob_num, instance_num))
 
     with open(output, "w+") as f:
         f.writelines(prob_name.format("solution_mip", prob_num, instance_num) + "\n")
@@ -292,3 +334,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost)
+
+    # prob_nums = [8]
+    # veh_nums = [4]
+    # inst_nums = [0,1,2]
+    # for num_vehicles in veh_nums:
+    #     for prob_num in prob_nums:
+    #         for instance_num in inst_nums:
+    #             num_nodes, time_window, map_size = 16, 4, 16
+    #
+    #             original_problem = "C:/Users/Louis/Documents/1stYearMasters/Fall Semester/MIE562/VRPTW_scheduler/benchmarks/original_v{}_c{}_tw{}_xy{}_{}.txt".format(num_vehicles, num_nodes, time_window, map_size, instance_num)
+    #             original_solution = "C:/Users/Louis/Documents/1stYearMasters/Fall Semester/MIE562/VRPTW_scheduler/benchmarks/solution_v{}_c{}_tw{}_xy{}_{}.txt".format(num_vehicles, num_nodes, time_window, map_size, instance_num)
+    #             perturbated_problem = "C:/Users/Louis/Documents/1stYearMasters/Fall Semester/MIE562/VRPTW_scheduler/benchmarks/perturbated{}_v{}_c{}_tw{}_xy{}_{}.txt".format(prob_num, num_vehicles, num_nodes, time_window, map_size, instance_num)
+    #
+    #             param = prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size
+    #
+    #             solve_one_problem(original_problem, original_solution, perturbated_problem, "output", "cost")
+    #
+    #             break
+    #         break
+    #     break
