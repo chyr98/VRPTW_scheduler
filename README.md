@@ -130,9 +130,9 @@ backtrack_search.py takes six command line arguments:
 - The path of the output file that stores the set of costs at different time steps.
 - The time limit for each optimization
 
-Solution route for MPP will be written into the solution file with the given path.\n
-Costs vs time steps will be written into the cost file with the given path in the following format.\n
-\t  {"cost": [cost1, cost2, ..., costn], "time": [10, 20, ..., time_limit]}
+Solution route for MPP will be written into the solution file with the given path.\
+Costs vs time steps will be written into the cost file with the given path in the following format\
+  {"cost": [cost1, cost2, ..., costn], "time": [10, 20, ..., time_limit]}
 
 ```python3 backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> -O <perturbed solution outputfile> -c <cost file> -t <time limit>```
 
