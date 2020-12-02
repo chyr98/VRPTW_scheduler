@@ -1,5 +1,6 @@
 import copy as cp
 import argparse
+import os
 import random
 import math
 import time
@@ -65,6 +66,48 @@ def makeVisitData(path, cData):
             
 
     return all_visits
+
+
+def makeVisitDataInfeasible(path,cData):
+        #The infeasible version of the makeVisitData function
+        
+    nVeh = len(path)
+    
+    all_visits = []
+
+    for i in range(nVeh):
+        #for each vehicle, add the depot as the starting node. No need to worry about returning to the depot - this has no impact on the MPP objective
+        path[i] = [0] + path[i]
+        t = 0
+
+        for j in range((len(path[i])-1)):
+            node_curr = path[i][j]
+            node_next = path[i][j+1]
+
+
+            #distances
+            coords_curr = (cData[node_curr][0], cData[node_curr][1])
+            coords_next = (cData[node_next][0], cData[node_next][1])
+
+            d = distBtwnPts(coords_curr, coords_next)
+
+            #get service time
+            t = t + d
+
+            #service time is delayed if need to wait for time windows
+            tw_start = cData[node_next][2]
+            tw_end = cData[node_next][3]
+
+            if tw_start > t:
+                t = tw_start
+
+            info_next = [node_next, i, t]
+            all_visits.append(info_next)
+            
+
+    return all_visits
+
+
 
 def distBtwnPts(coords1,coords2):
     
@@ -220,6 +263,13 @@ def ChooseVisit(r_path, rem_vs, orig_s_times,cData,d):
     P = None
     v_ind = None
 
+    #A second max min cost in case of infeasibility
+    inf_max_tot = 0
+
+    #Big M constant:
+    M = (len(cData)**2)*16
+
+    global feasible_found
 
 
     for i in range(len(rem_vs)):
@@ -236,29 +286,56 @@ def ChooseVisit(r_path, rem_vs, orig_s_times,cData,d):
 
                 cost = PathQuality(r_path,orig_s_times,cData)
                 
+
                 if cost != None:
                     f_pts.append((k, j , cost))
+              
+                else:
+                    #infeasible
+
+                    if not feasible_found:
+                        infeas_cost = PathQualityInfeasible(r_path, orig_s_times, cData)
+                        f_pts.append((k,j,infeas_cost))
+
                 #else:
                 #    print('infeasible, (point, veh, cost):' , (k, j , cost))
 
                 del r_path[j][k]
 
 
-
+    
         if f_pts:
             f_pts.sort(key = lambda x:x[2])
 
 
             max_min_cost = f_pts[0][2] 
-            if max_min_cost > max_min_cost_tot:
+            if max_min_cost > max_min_cost_tot and max_min_cost < M:
 
                 v = rem_vs[i][0]
                 v_ind = i
                 P = f_pts[0:d]
                 max_min_cost_tot = max_min_cost
 
-    return (v, v_ind, P)
+            if not feasible_found:
 
+                if max_min_cost > inf_max_tot:
+                    v_inf = rem_vs[i][0]
+                    v_ind_inf = i
+                    P_inf = f_pts[0:d]
+
+
+                    inf_max_tot = max_min_cost
+
+    #if no feasible solutions found yet, chose an arbitrary variable:
+    
+    #If any routes giving feasibility exist - return those. Otherwise, branch on an infeasible route.
+
+    if feasible_found or v != None:
+        return (v, v_ind, P)
+    else:
+        return(v_inf, v_ind_inf, P_inf)
+
+    
     
     
 
@@ -280,6 +357,70 @@ def PathQuality(path,orig_s_times,cData):
         return obj
 
 
+def PathQualityInfeasible(path,orig_s_times,cData):
+    
+    
+
+    nVeh = len(orig_s_times)
+    nCus = len(orig_s_times[0])+1
+
+    visits = makeVisitDataInfeasible(cp.deepcopy(path),cData)
+
+    if visits == None:
+        return None
+    #print('visits ', visits)
+
+    s_times = GetSTimes(nCus,nVeh,visits)
+    obj = InfeasObj(s_times, cData)
+
+    return obj
+
+
+def InfeasObj(s_times, c_Data):
+   
+    nVeh = len(s_times)
+    
+    #nCus includes depot
+    nCus = len(c_Data)
+    
+    #build time window data array
+    tw_data = []
+
+    for i in range(nCus-1):
+        tw_data.append(c_Data[i+1][3])
+
+    #print('tw data is ' , tw_data)
+
+
+    #find non-zero service time
+    nz_s_times = [0 for i in range(nCus-1)]
+
+    for i in range(nVeh):
+        for j in range(nCus-1):
+            if s_times[i][j] != 0:
+                nz_s_times[j] = s_times[i][j]
+                #break
+
+    #print('non-zero start times are', nz_s_times)
+
+
+    #big M coef:
+    M = nCus*nCus*16
+    obj = M
+
+    #sum tw_end violations:
+
+    for i in range(nCus - 1):
+        if nz_s_times[i] > tw_data[i]:
+            obj += nz_s_times[i] - tw_data[i]
+
+    return obj
+
+
+
+
+
+
 def countCustomers(path):
     cnt = 0 
     for i in range(len(path)):
@@ -289,7 +430,7 @@ def countCustomers(path):
     return cnt
 
 
-def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, res_path, t_lim, t_lim_iter):
+def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, output_file, t_lim, t_lim_iter):
     #takes a reduced path, visits to reinsert (rem_vs), and a lower bound on the best solution,
     #Explores the search tree of reinserting all of  the visits, following a limited discrepancy search - starting with an initial value for d
     #the ordering heuristic is to choose the worst variable (i.e. the one with the maximum insertion cost to the objective) then select its best value
@@ -300,24 +441,52 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, res_path, t_
    global t_start
    global t_iter_start
    global optim_status
+   global intermediate_file
+   global feasible_found
 
    t= time.time()
 
    if (t < (t_iter_start + t_lim_iter)) and (t < (t_start + t_lim)):
     if len(rem_vs) == 0:
+
+   
         res = PathQuality(red_path,orig_s_times,cData)
+        if res == None:
+            res = PathQualityInfeasible(red_path,orig_s_times,cData)
+            #print('infeas res is , ', res)
+
         if res < best_obj:
             best_obj = res
             best_path = red_path
 
+            #check if this is the first time a feasible solution is found
+            #big M constant:
+            M = len(cData)*len(cData)*16
+            if best_obj < M:
+                feasible_found = True
+                #print('feasible found at ', str(t-t_start))
+
+            
+            #write intermediate results if feasible solution found:
+
+            if feasible_found == True:
+                f = open(intermediate_file,'a')
+                #f.write(("feasible solution found: " + str(feasible_found) + '\n'))
+                f.write(str(round((t-t_start),3)) + '\n')
+                f.write(str(round(best_obj,3)) + '\n')
+                f.write('-------------- \n')
+
             #print('------------------NEW BEST OBJ FOUND:' , best_obj)
             #print('------------------NEW BEST Path FOUND: \n' , best_path)
+
+
+
 
             #Check if within optimality gap
             d_optimal = abs(optimal-res)
             if d_optimal <= og*optimal:
-                f = open(res_path,'w')
-                f.write(("Arrived at the optimal solution after " + str(round(t - t_start,1)) + ' s'))
+                #f = open(output_file,'w')
+                #f.write(("Arrived at the optimal solution after " + str(round(t - t_start,1)) + ' s'))
                 #print("Arrived at the optimal solution after ", round((t - t_start),1), ' s')
                 optim_status = True
                 
@@ -343,7 +512,7 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, res_path, t_
                 del rem_vs[v_ind]
 
 
-                Reinsert(cp.deepcopy(red_path),cp.deepcopy(rem_vs),(d-i),optimal, og, orig_s_times,cData,res_path, t_lim, t_lim_iter)
+                Reinsert(cp.deepcopy(red_path),cp.deepcopy(rem_vs),(d-i),optimal, og, orig_s_times,cData,output_file, t_lim, t_lim_iter)
                 
                 #Put back the added visit to removed visit list
                 rem_vs.insert(v_ind,v_saved)
@@ -360,24 +529,10 @@ def Reinsert(red_path, rem_vs, d, optimal, og, orig_s_times, cData, res_path, t_
 
 
 
-def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, t_lim, t_lim_iter):
+def run_LNS(frac, original_file, original_soln_file, MPP_file, MPP_soln_file, output_file, cost_file, d, optimal, og, t_lim, t_lim_iter, int_file):
     #run the LNS algorithm
     #parameters: frac -  The fraction of visits that will be removed and reinserted for each iteration of local search.
-    #bPath: benchmarks folder path
-    #pInfo: details of the problem - will be added to create filepaths such as: "perturbated1_v4_c64_tw4_xy16_1.txt" 
-    #nSwaps: number of swaps that the MPP was generated with
 
-
-
-    #filepaths
-    MPP_file = bPath + '\\perturbated' + str(nSwaps) + pInfo + '.txt'
-    MPP_soln_file = bPath + '\\perturbated' + str(nSwaps) + "_solution" + pInfo + '.txt'
-    original_soln_file = bPath + '\\solution' + str(pInfo) + '.txt'
-    original_file = bPath +'\\original' + str(pInfo) + '.txt'
-
-    #results directory and path
-    Path(".\\LNS Results").mkdir(parents=True, exist_ok=True)
-    res_path = '.\\LNS Results\\LNS_Results' + pInfo +'.txt'
 
     #Read in MPP problem file
     f1 = open(MPP_file,'r')
@@ -413,14 +568,24 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, t_lim, t_lim_iter):
 
 
     #get MPP input solution: the route of each vehicle is stored in a sublist in path. This is the input solution to LNS
-    path = readPath(MPP_soln_file,nVeh)
+    #path = readPath(MPP_soln_file,nVeh)
 
     #get original paths/routes, same data form as the candidate routes
     original_path = readPath(original_soln_file,nVeh)
 
+    #to start, set candidate path to original
+    path = original_path
+
+
+    #set up log file to track each new (intermediate) best objective
+    f_intermediate = open(int_file,'w')
+    f_intermediate.close()
+
     #get a list of parameters for each visit in the routes [[customer number, vehichle served by, service time],...]
-    all_visits = makeVisitData(cp.deepcopy(path),cData)
+    all_visits = makeVisitDataInfeasible(cp.deepcopy(path),cData)
+    #print('all_visits ', all_visits, '\n')
     original_visits = makeVisitData(cp.deepcopy(original_path), orig_cData)
+    #print('original_visits ', original_visits, '\n')
 
     #get initial objective value for MPP
     orig_s_times = GetSTimes(nCus,nVeh, cp.deepcopy(original_visits))
@@ -430,16 +595,23 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, t_lim, t_lim_iter):
     
     #initialize global best_path and best_obj variables
     global best_path
+    global feasible_found
     global best_obj
     global t_start
     global t_iter_start
+    global intermediate_file
+
+    intermediate_file = int_file
+    feasible_found = False
 
     #tracks if optimality has been reached
     global optim_status
     optim_status = False
     
 
-    best_obj = Objective(cp.deepcopy(s_times),cp.deepcopy(orig_s_times))
+    best_obj = float('inf')
+    #print('initial best obj ', best_obj)
+
     best_path = path
 
     #print('initial best obj', best_obj)
@@ -459,36 +631,43 @@ def run_LNS(frac, bPath, pInfo, nSwaps,d, optimal, og, t_lim, t_lim_iter):
         #print(best_path)
 
         #update all_visits
-        all_visits = makeVisitData(cp.deepcopy(best_path),cData)
+        all_visits = makeVisitDataInfeasible(cp.deepcopy(best_path),cData)
 
         rem_vs, red_path = removeVisits(cp.deepcopy(best_path),cp.deepcopy(all_visits),cData,float(frac))
 
 
+
         #update iteration start time
         t_iter_start = time.time()
-        Reinsert(red_path,rem_vs,d,optimal, og, orig_s_times,cData,res_path, t_lim, t_lim_iter)
+        Reinsert(red_path,rem_vs,d,optimal, og, orig_s_times,cData,output_file, t_lim, t_lim_iter)
 
         #update iteration count
         i += 1
     
     #print('best obj at end is ', best_obj)
 
-    f = open(res_path,'a')
-    f.write('\n')
-    f.write(('Best objective found: ' + str(round(best_obj,3))+'\n'))
-    f.write('Best path found: \n')
-
+    f = open(output_file, 'w')
+    #f.write('\n')
+    #f.write(('Best objective found: ' + str(round(best_obj,3))+'\n'))
+    #f.write('Best path found: \n')
+    f.write('#\n')
+    f.write(str(nVeh) + '\n')
 
     #write path:
-    for i in range(nVeh):
-       f.write((str(best_path[i])+'\n'))
+    #only write if there is a feasible solution
+    if feasible_found == True:
+       for i in range(nVeh):
+         f.write(' '.join([str(r) for r in best_path[i]])+'\n')
             
     
-    f.write('--------------------------\n')
+    #f.write('--------------------------\n')
 
+    with open(cost_file, 'w') as f:
+        #Only write to cost_file if solution is feasible
+        if feasible_found == True:
+            f.write(str(best_obj) + '\n')
     
 
-    #TO DO: check copy for all list args. CData is OK since not modified.
 
     soln = []
     return soln
@@ -499,11 +678,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--frac', '-f', type=float, default=0.25,
                         help='The fraction of visits that will be removed and reinserted for each iteration of local search.')
-    parser.add_argument('--benchmarks-dir', '-b', type=str, required=True,
-                        help='The path of the benchmarks folder. Ex. if in same folder, then .\benchmarks')
-    parser.add_argument('--prob-info', '-p', type=str, required=True,
-                        help='The details of the problem in the format of the benchmark names, i.e. _v1_c4_tw4_xy16_0')
-    parser.add_argument('--nSwaps', '-s', type=str, default=2, help='The number of swaps')
+    parser.add_argument('--original-problem', type=str, required=True)
+    parser.add_argument('--original-solution', type=str, required=True)
+    parser.add_argument('--perturbated-problem', type=str, required=True)
+    parser.add_argument('--perturbated-solution', type=str, required=True)
+    parser.add_argument('--output', type=str, required=True)
+    parser.add_argument('--cost', type=str, required=True)
+    parser.add_argument('--intermediate-output', type=str, required=True, help='File path where intermediate results will be written')
     parser.add_argument('--optimal', '-o', type=str, default = 0,
                         help='the optimal solution, if available. If not provided, valued at 0. ')
     parser.add_argument('--optimality_gap', '-og', type=str, default = 0.0001, help = 'optimality gap, i.e 0.0001 is 0.01%.')
@@ -522,7 +703,7 @@ if __name__ == '__main__':
 
     else:
         print('running LNS...')
-        soln = run_LNS(args.frac, args.benchmarks_dir, args.prob_info, args.nSwaps,int(args.d), float(args.optimal), float(args.optimality_gap), int(args.t_lim), int(args.t_lim_iter))
+        soln = run_LNS(args.frac, args.original_problem, args.original_solution, args.perturbated_problem, args.perturbated_solution, args.output, args.cost, int(args.d), float(args.optimal), float(args.optimality_gap), int(args.t_lim), int(args.t_lim_iter), args.intermediate_output)
 
 
 

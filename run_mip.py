@@ -1,9 +1,10 @@
+import argparse
 import json
 import os
 from os import listdir
 from os.path import isfile, join
+import re
 import time
-
 
 import random
 import numpy as np
@@ -16,6 +17,41 @@ SAVEFOLDERPATH = "./mip_solutions/"
 BENCHPATH = "./benchmarks/"
 
 K = 99999
+
+from docplex.mp.progress import SolutionRecorder
+
+class MyProgressListener(SolutionRecorder):
+    def __init__(self, model):
+        SolutionRecorder.__init__(self)
+        self.costs = []
+        self.times = []
+        self.current_objective = 999999
+
+    def notify_start(self):
+        super(SolutionRecorder, self).notify_start()
+        self.last_obj = None
+        self.st = time.time()
+
+    def is_improving(self, new_obj, eps=1e-8):
+        last_obj = self.last_obj
+        return last_obj is None or (abs(new_obj- last_obj) >= eps)
+
+    def notify_solution(self, s):
+        SolutionRecorder.notify_solution(self, s)
+        if s.has_objective() and self.is_improving(s.get_objective_value()):
+            self.last_obj = s.get_objective_value()
+            print('----> #new objective={0}'.format(self.last_obj))
+            self.costs.append(s.get_objective_value())
+            self.times.append(time.time()-self.st)
+
+    def write_to_file(self, filename):
+        data = {"cost":self.costs, "time":self.times}
+        # Create folder to store all outputs
+        if not os.path.exists(SAVEFOLDERPATH):
+            os.makedirs(SAVEFOLDERPATH)
+        with open(SAVEFOLDERPATH+filename+'.json', 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
 
 def get_time_for_sln(prob, sln):
 
@@ -35,7 +71,7 @@ def get_time_for_sln(prob, sln):
             last_time = 0.0
 
             for c in r:
-                t = time[1][c][1]
+                t = time[c][1]
                 text += ', {}: {:.2f}'.format(c, t)
                 last = c
                 last_time = t
@@ -44,6 +80,7 @@ def get_time_for_sln(prob, sln):
             if last != -1:
                 total_time = last_time + prob.distance(last, 0)
                 text += ', 0: {:.2f}'.format(total_time)
+    print(time)
 
             #print(text)
         #print('total cost: {:.2f}'.format(time[0]))
@@ -64,53 +101,43 @@ def check_feasibility(pert_st, lb, ub, tol=1e-9):
     return failed
 
 
-def build_MIP(param):
-
+def build_MIP(original_problem, original_solution, perturbated_problem, param):
     prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size = param
-
-    prob_name = "{}{}" + "_v{}_c{}_tw{}_xy{}_".format(num_vehicles, num_nodes, time_window, map_size) + "{}"
-
-    prob_path = BENCHPATH + prob_name + '.txt'
-
-    orig_prob = util.VRPTWInstance.load(prob_path.format("original", "", instance_num))
-    orig_sln = util.load_solution(prob_path.format("solution", "", instance_num))
-    orig_time = orig_prob.get_time(orig_sln)
-
-    pert_prob = util.VRPTWInstance.load(prob_path.format("perturbated", prob_num, instance_num))
-
-
+    orig_prob = util.VRPTWInstance.load(original_problem)
+    orig_sln = util.load_solution(original_solution)
+    pert_prob = util.VRPTWInstance.load(perturbated_problem)
 
     orig_st = get_time_for_sln(orig_prob, orig_sln)
 
     m = Model("VRPTW")
 
     num_vehicles = pert_prob.num_vehicles
-    num_nodes = len(pert_prob.nodes) + 1
+    num_nodes = len(pert_prob.nodes)
 
     x = m.binary_var_cube(num_nodes, num_nodes, num_vehicles, name="x")
 
-    lb = [pert_prob.nodes[i].a for i in range(num_nodes-1)] + [0]
-    ub = [pert_prob.nodes[i].b for i in range(num_nodes-1)] + [K]
+    lb = [pert_prob.nodes[i].a for i in range(num_nodes)] #+ [0]
+    ub = [pert_prob.nodes[i].b for i in range(num_nodes)] #+ [K]
 
 
     s = m.continuous_var_matrix(num_nodes, num_vehicles, lb=0, name="st")
 
 
     source_id = 0
-    sink_id = num_nodes-1
+    sink_id = 0
 
     for k in range(num_vehicles):
         m.add_constraint(
-            m.sum(x[(source_id,j,k)] for j in range(num_nodes)) == 1
+            m.sum(x[(source_id,j,k)] for j in range(1, num_nodes)) == 1
         )
 
     for k in range(num_vehicles):
         m.add_constraint(
-            m.sum(x[(i,sink_id,k)] for i in range(num_nodes)) == 1
+            m.sum(x[(i,sink_id,k)] for i in range(1, num_nodes)) == 1
         )
 
     for k in range(num_vehicles):
-        for i in range(1, num_nodes-1):
+        for i in range(1, num_nodes):
             m.add_constraint(
                 m.sum(x[(i,j,k)] for j in range(num_nodes)) == m.sum(x[(j,i,k)] for j in range(num_nodes))
             )
@@ -119,42 +146,46 @@ def build_MIP(param):
         for i in range(num_nodes):
             m.add_constraint(x[(i,i,k)] == 0)
 
-            m.add_constraint(x[(sink_id,i,k)] == 0)
-            m.add_constraint(x[(i, source_id, k)] == 0)
+           # m.add_constraint(x[(sink_id,i,k)] == 0)
+            #m.add_constraint(x[(i, source_id, k)] == 0)
 
 
-    for i in range(1, num_nodes-1):
+    for j in range(1, num_nodes):
+        m.add_constraint(
+            m.sum(x[(i,j,k)] for i in range(num_nodes) for k in range(num_vehicles)) == 1
+        )
+
+    for i in range(1, num_nodes):
         m.add_constraint(
             m.sum(x[(i,j,k)] for j in range(num_nodes) for k in range(num_vehicles)) == 1
         )
 
-
     for k in range(num_vehicles):
-        for i in range(num_nodes):
-            for j in range(num_nodes):
-                i_, j_ = i % (num_nodes - 1), j % (num_nodes - 1)
-                t_ij = abs(pert_prob.nodes[i_].distance(pert_prob.nodes[j_]))
-                m.add_constraint(
-                    s[(i,k)] - s[(j,k)] + t_ij <= (1-x[(i,j,k)]) * K
-                )
+        for i in range(1, num_nodes):
+            for j in range(1, num_nodes):
+
+                if i != j:
+                    t_ij = abs(pert_prob.nodes[i].distance(pert_prob.nodes[j]))
+                    m.add_constraint(
+                        s[(i,k)] - s[(j,k)] + t_ij <= (1-x[(i,j,k)]) * K
+                    )
 
     for k in range(num_vehicles):
         for i in range(num_nodes):
             #m.add_constraint(s[(i,k)] <= b[i] * m.sum(x[i,j,k] for j in range(num_nodes)) )
             m.add_constraint(s[(i,k)] >= lb[i] * m.sum(x[i,j,k] for j in range(num_nodes)) )
 
-            if i < sink_id:
-                m.add_constraint(s[(i,k)] <= ub[i] * m.sum(x[i,j,k] for j in range(num_nodes)))
+            #if i < sink_id:
+            m.add_constraint(s[(i,k)] <= ub[i] * m.sum(x[i,j,k] for j in range(num_nodes)))
 
 
-    m.minimize(m.sum(m.abs(s[(i,k)] - orig_st[k][i]) for i in range(num_nodes-1) for j in range(num_vehicles)))
+    m.minimize(m.sum(m.abs(s[(i,k)] - orig_st[k][i]) for i in range(num_nodes) for k in range(num_vehicles)))
 
 
     return m, lb, ub
 
 
-
-def traverse_path(mat, li, i = 0):
+def traverse_path(mat, li, i = 0, left=False):
     """
         Traverses (recursively) through path defined in mat
 
@@ -172,11 +203,11 @@ def traverse_path(mat, li, i = 0):
         list of all historical nodes traveled
     """
 
-    if not len(np.where(mat[i])[0]):
-        return li
     i = np.where(mat[i])[0][0]
+    if left and i == 0:
+        return li
     li.append(i)
-    return traverse_path(mat, li, i)
+    return traverse_path(mat, li, i, left=True)
 
 
 def run_MIP(params):
@@ -245,37 +276,81 @@ def run_MIP(params):
                 line = " ".join(paths)
                 f.writelines(str(line) + "\n")
 
+        print(pert_st)
+
     return results
 
+
+def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost):
+
+    pattern = re.compile(r'perturbated(?P<p>\d+)_v(?P<v>\d+)_c(?P<c>\d+)_tw(?P<tw>\d+)_xy(?P<xy>\d+)_(?P<id>\d+)\.txt')
+    m = pattern.match(os.path.basename(perturbated_problem))
+    prob_num = int(m.group('p'))
+    instance_num = int(m.group('id'))
+    num_vehicles = int(m.group('v'))
+    num_nodes = int(m.group('c'))
+    time_window = int(m.group('tw'))
+    map_size = int(m.group('xy'))
+    params = prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size
+
+
+    mdl, _, _ = build_MIP(original_problem, original_solution, perturbated_problem, params)
+
+    listener = MyProgressListener(mdl)
+    mdl.add_progress_listener(listener)
+    mdl.solve(log_output=True)
+
+    listener.costs.append(mdl.objective_value)
+    listener.times.append(time.time()-listener.st)
+
+
+    # # Get values for decision variables used in the model
+    # pert_x = [[[mdl.get_var_by_name("x_{}_{}_{}".format(i,j,k)).solution_value for j in range(num_nodes)] for i in range(num_nodes)] for k in range(num_vehicles)]
+
+
+    prob_name = "{}{}" + "_v{}_c{}_tw{}_xy{}_".format(num_vehicles, num_nodes, time_window, map_size) + "{}"
+
+    listener.write_to_file(prob_name.format("mip_results", prob_num, instance_num))
+
+    with open(output, "w+") as f:
+        f.writelines(prob_name.format("solution_mip", prob_num, instance_num) + "\n")
+        f.writelines(str(num_vehicles) + "\n")
+        for i, x in enumerate(pert_x):
+            paths = list(map(str, traverse_path(x, [])))
+            line = " ".join(paths)
+            f.writelines(str(line) + "\n")
+
+    with open(cost, "w") as f:
+        f.write(str(m.objective_value) + '\n')
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--original-problem', type=str, required=True)
+    parser.add_argument('--original-solution', type=str, required=True)
+    parser.add_argument('--perturbated-problem', type=str, required=True)
+    parser.add_argument('--output', type=str, required=True)
+    parser.add_argument('--cost', type=str, required=True)
+    args = parser.parse_args()
 
-    # Should match file combinations in benchmark folder
-    params = {"num_vehicles":[1,2,4,], "num_nodes":[4,16,64,], "time_window":[4,8,16], "map_size":[16], "instances":[0,1,2,3,4], "problems":[1,2,4,8]}
+    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost)
 
-    # prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size
-    params = [(prob, ins, v, n, tw, xy) for v in params['num_vehicles'] for n in params['num_nodes'] for tw in params['time_window'] for xy in params['map_size'] for ins in params['instances'] for prob in params['problems'] if v < n and prob < n]
-
-    results = run_MIP(params)
-
-
-
-
-
-
-## Items may fail due to numerical issues in CPLEX
-# params = []
-# for i, f in enumerate(results['failed']):
-#     if len(f):
-#         param = (results['prob_num'][i], results['instance_num'][i], results['num_vehicles'][i], results["num_nodes"][i], results["time_window"][i], results["map_size"][i])
-#         params.append(param)
-#
-# for param in params:
-#     m, lb, ub = build_MIP(param)
-#     m.solve()
-#     prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size = param
-#
-#     pert_x = [[[m.get_var_by_name("x_{}_{}_{}".format(i,j,k)).solution_value for j in range(num_nodes)] for i in range(num_nodes)] for k in range(num_vehicles)]
-#
-#     pert_st = [[m.get_var_by_name("st_{}_{}".format(i,k)).solution_value for i in range(num_nodes)] for k in range(num_vehicles)]
-#
-#     print(check_feasibility(pert_st, lb, ub, tol=1e-4))
+    # prob_nums = [8]
+    # veh_nums = [4]
+    # inst_nums = [0,1,2]
+    # for num_vehicles in veh_nums:
+    #     for prob_num in prob_nums:
+    #         for instance_num in inst_nums:
+    #             num_nodes, time_window, map_size = 16, 4, 16
+    #
+    #             original_problem = "C:/Users/Louis/Documents/1stYearMasters/Fall Semester/MIE562/VRPTW_scheduler/benchmarks/original_v{}_c{}_tw{}_xy{}_{}.txt".format(num_vehicles, num_nodes, time_window, map_size, instance_num)
+    #             original_solution = "C:/Users/Louis/Documents/1stYearMasters/Fall Semester/MIE562/VRPTW_scheduler/benchmarks/solution_v{}_c{}_tw{}_xy{}_{}.txt".format(num_vehicles, num_nodes, time_window, map_size, instance_num)
+    #             perturbated_problem = "C:/Users/Louis/Documents/1stYearMasters/Fall Semester/MIE562/VRPTW_scheduler/benchmarks/perturbated{}_v{}_c{}_tw{}_xy{}_{}.txt".format(prob_num, num_vehicles, num_nodes, time_window, map_size, instance_num)
+    #
+    #             param = prob_num, instance_num, num_vehicles, num_nodes, time_window, map_size
+    #
+    #             solve_one_problem(original_problem, original_solution, perturbated_problem, "output", "cost")
+    #
+    #             break
+    #         break
+    #     break

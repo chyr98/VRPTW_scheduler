@@ -164,12 +164,14 @@ def main(argv, hint=False):
     solution_file = ""
     perturbated_file_name = ""
     perturbated_output_file = ""
+
     cost_output_file = ""
     max_run_time = 30
     help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
                    '-O <perturbed solution outputfile> -c <cost outputfile> -t <time limit>'
     try:
         opts, args = getopt.getopt(argv, "hi:I:s:O:c:t:", ["ifile=", "Ifile=", "sfile=", "Ofile=", "cost=", "time="])
+        
     except getopt.GetoptError:
         print(help_message)
         sys.exit(2)
@@ -273,11 +275,13 @@ def main(argv, hint=False):
 
     print_solution(perturbated_output_file, perturbated_problem, cost_output_file, mpp_opt_routes, performance)
 
+    with open(cost_file, "w") as f:
+        f.write(str(mpp_opt_sol) + '\n')
+
 
 if __name__ == '__main__':
     #message = "backtrack_search.py -i benchmarks/original_v4_c64_tw16_xy16_0.txt -I benchmarks/perturbated4_v4_c64_tw16_xy16_0.txt " \
     #          "-s benchmarks/solution_v4_c64_tw16_xy16_0.txt -O perturbed_opt_solution.txt -c opt_cost.txt -t 180"
-
+    
     #main(message.split()[1:], hint=True)
     main(sys.argv[1:], hint=True)
-

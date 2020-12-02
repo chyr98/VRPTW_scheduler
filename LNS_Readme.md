@@ -1,5 +1,29 @@
 Instructions to run the LNS code:
 
+------------------
+# NEW Instructions: Intermediate values
+
+## New parameters: 
+--intermediate-output: Filepath for intermediate output
+
+## Output format:
+--------
+Time since start (in seconds)  
+Best objective found so far  
+*repeat each time better objective is found.  
+
+
+
+
+
+
+
+
+
+## OLD Instructions
+
+
+
 Output:
 For each run of each problem instance, such as '_v4_c16_tw16_xy16_0', a results file (ie'LNS_Results_v4_c16_tw16_xy16_0') is written in a directory created in the same folder as LNS.py.
 If such a file already exists, it is overwritten.
