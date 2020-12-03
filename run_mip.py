@@ -244,7 +244,7 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
 
     listener.costs.append(mdl.objective_value)
     listener.times.append(time.time()-listener.st)
-    result = {'name': pert_prob.name, 'cost': listener.costs, 'time': listener.times, 'optimal': True}
+    result = {'cost': listener.costs, 'time': listener.times, 'optimal': True}
     solution = extract_solution(pert_prob, mdl.solution)
 
     with open(output, 'w') as f:

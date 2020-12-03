@@ -179,7 +179,7 @@ The file contains a list of mehtods.
   },
   {
     "name": "LNS",
-    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --perturbated-solution {perturbated_solution} --output {output} --cost {cost} --t_lim 178"
+    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --t_lim 178"
   },
   {
     "name": "MIP",

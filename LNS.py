@@ -614,7 +614,7 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, output_file, cost
         #write path:
         mpp_problem.dump_routes_with_time(best_path, output_file)
 
-        result = {'name': mpp_problem.name, 'cost': cost_list, 'time': time_list, 'optimal': False}
+        result = {'cost': cost_list, 'time': time_list, 'optimal': False}
 
         with open(cost_file, 'w') as f:
             if feasible_found == True:

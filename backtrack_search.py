@@ -160,11 +160,9 @@ def get_solution(vehicles, nodes, service_indicators_v, service_time):
 def print_solution(solution_output_file, problem, cost_output_file, routes, times, performance):
     with open(solution_output_file, 'w') as f:
         output = {"name": problem.name, "routes": routes, "time": times}
-        print(output)
         json.dump(output, f, indent=4)
 
     with open(cost_output_file, 'w') as f:
-        print(performance)
         json.dump(performance, f, indent=4)
 
 
@@ -172,7 +170,7 @@ def callback_on_solution(model, where):
     if where == GRB.Callback.MIPSOL:
         model.__cost_list.append(model.cbGet(GRB.Callback.MIPSOL_OBJ))
         model.__time_list.append(model.cbGet(GRB.Callback.RUNTIME))
-        performance = {'name': model.__problem.name, 'cost': model.__cost_list, 'time': model.__time_list, 'optimal': False}
+        performance = {'cost': model.__cost_list, 'time': model.__time_list, 'optimal': False}
         vehicles = model.__problem.num_vehicles
         nodes = len(model.__problem.nodes)
         service_indicators = model.__service_indicators.flatten()
@@ -282,7 +280,7 @@ def main(argv, hint=False):
     if model.Status == gp.GRB.OPTIMAL:
         model.__cost_list.append(model.ObjVal)
         model.__time_list.append(mpp_run_time)
-        performance = {"name": problem.name, "cost": model.__cost_list, "time": model.__time_list, "optimal": True}
+        performance = {"cost": model.__cost_list, "time": model.__time_list, "optimal": True}
         service_indicators_v = np.array([v.x for v in service_indicators.flatten()]).reshape((vehicles, nodes, nodes))
         service_time_v = np.array([v.x for v in service_time.flatten()]).reshape((vehicles, nodes))
         mpp_opt_routes, mpp_opt_times = get_solution(vehicles, nodes, service_indicators_v, service_time_v)

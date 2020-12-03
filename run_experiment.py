@@ -78,6 +78,7 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
                     result['time_to_optimal'] = cost_result['time'][-1]
 
                 result['cost'] = cost_result['cost'][-1]
+                result['time_vs_cost'] = cost_result
             else:
                 result['solved'] = 0
 
