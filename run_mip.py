@@ -183,7 +183,7 @@ def build_MIP(orig_prob, solution, pert_prob, threads):
         )
 
     for k in range(num_vehicles):
-        for i in range(1, num_nodes):
+        for i in range(0, num_nodes):
             for j in range(1, num_nodes):
 
                 if i != j:
