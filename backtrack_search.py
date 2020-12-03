@@ -275,7 +275,7 @@ def main(argv, hint=False):
 
     print_solution(perturbated_output_file, perturbated_problem, cost_output_file, mpp_opt_routes, performance)
 
-    with open(cost_file, "w") as f:
+    with open(cost_output_file, "w") as f:
         f.write(str(mpp_opt_sol) + '\n')
 
 

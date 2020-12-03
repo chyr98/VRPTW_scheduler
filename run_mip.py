@@ -305,7 +305,7 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
 
 
     # # Get values for decision variables used in the model
-    # pert_x = [[[mdl.get_var_by_name("x_{}_{}_{}".format(i,j,k)).solution_value for j in range(num_nodes)] for i in range(num_nodes)] for k in range(num_vehicles)]
+    pert_x = [[[mdl.get_var_by_name("x_{}_{}_{}".format(i,j,k)).solution_value for j in range(num_nodes)] for i in range(num_nodes)] for k in range(num_vehicles)]
 
 
     prob_name = "{}{}" + "_v{}_c{}_tw{}_xy{}_".format(num_vehicles, num_nodes, time_window, map_size) + "{}"
@@ -321,7 +321,7 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
             f.writelines(str(line) + "\n")
 
     with open(cost, "w") as f:
-        f.write(str(m.objective_value) + '\n')
+        f.write(str(mdl.objective_value) + '\n')
 
 
 if __name__ == "__main__":
