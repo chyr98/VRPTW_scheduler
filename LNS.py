@@ -581,9 +581,6 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, output_file, cost
 
     #print('initial best obj', best_obj)
     
-    #start time
-    t_start = time.time()
-
     #iteration count
     i = 0
 
@@ -622,6 +619,9 @@ def run_LNS(frac, original_file, original_soln_file, MPP_file, output_file, cost
     
 
 if __name__ == '__main__':
+    #start time
+    t_start = time.time()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--frac', '-f', type=float, default=0.25,
                         help='The fraction of visits that will be removed and reinserted for each iteration of local search.')

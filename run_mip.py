@@ -44,7 +44,7 @@ def extract_solution(problem, mdl):
 
 
 class MyProgressListener(SolutionRecorder):
-    def __init__(self, problem, solution_file, cost_file):
+    def __init__(self, problem, solution_file, cost_file, st):
         SolutionRecorder.__init__(self)
         self.costs = []
         self.times = []
@@ -52,11 +52,11 @@ class MyProgressListener(SolutionRecorder):
         self.problem = problem
         self.solution_file = solution_file
         self.cost_file = cost_file
+        self.st = st
 
     def notify_start(self):
         super(MyProgressListener, self).notify_start()
         self.last_obj = None
-        self.st = time.time()
 
     def is_improving(self, new_obj, eps=1e-8):
         last_obj = self.last_obj
@@ -230,13 +230,13 @@ def traverse_path(mat, li, i = 0, left=False):
     return traverse_path(mat, li, i, left=True)
 
 
-def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost_file, threads):
+def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost_file, threads, st):
     orig_prob = util.VRPTWInstance.load(original_problem)
     solution = util.load_routes(original_solution)
     pert_prob = util.VRPTWInstance.load(perturbated_problem)
     mdl, _, _ = build_MIP(orig_prob, solution, pert_prob, threads)
 
-    listener = MyProgressListener(pert_prob, output, cost_file)
+    listener = MyProgressListener(pert_prob, output, cost_file, st)
     mdl.add_progress_listener(listener)
     mdl.solve(log_output=True)
 
@@ -253,6 +253,7 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
     
 
 if __name__ == "__main__":
+    st = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument('--original-problem', type=str, required=True)
     parser.add_argument('--original-solution', type=str, required=True)
@@ -262,4 +263,4 @@ if __name__ == "__main__":
     parser.add_argument('--threads', type=int, default=1)
     args = parser.parse_args()
 
-    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost, args.threads)
+    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost, args.threads, st)

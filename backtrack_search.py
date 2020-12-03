@@ -13,6 +13,7 @@ DEPOT_INDEX = 0
 LARGE = 1e7
 
 
+
 class VRPTWNode:
     def __init__(self, decision, parent, children):
         self.decision = decision
@@ -167,9 +168,11 @@ def print_solution(solution_output_file, problem, cost_output_file, routes, time
 
 
 def callback_on_solution(model, where):
+    global mpp_start
+
     if where == GRB.Callback.MIPSOL:
         model.__cost_list.append(model.cbGet(GRB.Callback.MIPSOL_OBJ))
-        model.__time_list.append(model.cbGet(GRB.Callback.RUNTIME))
+        model.__time_list.append(time.perf_counter() - mpp_start)
         performance = {'cost': model.__cost_list, 'time': model.__time_list, 'optimal': False}
         vehicles = model.__problem.num_vehicles
         nodes = len(model.__problem.nodes)
@@ -181,7 +184,7 @@ def callback_on_solution(model, where):
         print_solution(model.__solution_file, model.__problem, model.__cost_file, routes, times, performance)
 
 
-def main(argv):
+def main(argv, mpp_start):
     file_name = ""
     solution_file = ""
     perturbated_file_name = ""
@@ -276,7 +279,6 @@ def main(argv):
     model.__solution_file = perturbated_output_file
     model.update()
 
-    mpp_start = time.perf_counter()
     model.optimize(callback_on_solution)
     mpp_end = time.perf_counter()
     mpp_run_time = mpp_end - mpp_start
@@ -292,8 +294,10 @@ def main(argv):
 
 
 if __name__ == '__main__':
+    mpp_start = time.perf_counter()
+
     #message = "backtrack_search.py -i benchmarks/original_v4_c64_tw16_xy16_0.txt -I benchmarks/perturbated4_v4_c64_tw16_xy16_0.txt " \
     #          "-s benchmarks/solution_v4_c64_tw16_xy16_0.txt -O perturbed_opt_solution.txt -c opt_cost.txt -t 180"
     
     #main(message.split()[1:], hint=True)
-    main(sys.argv[1:])
+    main(sys.argv[1:], mpp_start)
