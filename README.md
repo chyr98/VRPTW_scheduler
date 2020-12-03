@@ -77,23 +77,29 @@ python3 mpp_generator.py \
 ### Solution Format
 
 ```
-# prolem1
-2
-1 2
-3 4
+{
+  "name": "problem1",
+  "routes": [
+    [1, 2],
+    [3, 4]
+  ],
+  "time": [
+    [10, 20],
+    [15, 30]
+  ]
+}
 ```
-- the first line is problem name
-- the second line is the number of vehicles
-- the subsequenting lines describe routes
-  - each line describes one route
+- "routes" describes routes
+  - each list describes one route
   - routes are listed in the order of the indices of the vehicles
   - customers are listed in the order of the visits in each line
   - the depot is omitted
+- "time describes the service time
 
 ## Solution Validator
 
 ```bash
-python3 validate_solution.py --problem problem1.txt --solution solution_problem1.txt
+python3 validate_solution.py --problem problem1.txt --solution solution_problem1.json
 vehicle 0
         0: 0.0, 3: 8.54, 4: 14.63, 2: 15.63
 vehicle 1
@@ -101,7 +107,7 @@ vehicle 1
 total cost: 34.17
 ```
 
-- output routes of vehicles and the starting time at each customer
+- output routes of vehicles and the service time at each customer
 
 
 
