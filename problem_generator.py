@@ -97,4 +97,4 @@ if __name__ == '__main__':
 
     if args.solution is not None:
         print('saving a solution for the problem...')
-        util.dump_routes(problem.name, routes, args.solution)
+        problem.dump_routes_with_time(routes, args.solution)

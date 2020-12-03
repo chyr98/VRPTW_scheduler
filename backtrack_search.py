@@ -49,6 +49,7 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
 
     # MIP model setup
     model = gp.Model("MainBS")
+    model.__problem = problem
 
     # Variables
 
@@ -137,26 +138,49 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
     for j in customer_indices:
         model.addConstr(gp.quicksum(service_indicators[:, :, j].flatten()) >= 1, "completion_%g" % j)
 
+    model.__service_indicators = service_indicators
+    model.__service_time = service_time
+
     return model, service_indicators, service_time, distance_map, time_window
 
 
-def print_solution(route_output_file, problem, cost_output_file, route, performance):
-    vehicles, customers = problem.num_vehicles, len(problem.nodes)
-    f = open(route_output_file, "w")
-
-    f.write("# " + problem.name + "\n")
-    f.write(str(vehicles) + "\n")
-
+def get_solution(vehicles, nodes, service_indicators_v, service_time):
+    routes = [[] for _ in range(vehicles)]
+    times = [[] for _ in range(vehicles)]
     for k in range(vehicles):
-        for i in route[k]:
-            if i != DEPOT_INDEX:
-                f.write(str(i) + " ")
-        f.write("\n")
+        curr_pos = np.argmax(service_indicators_v[k, DEPOT_INDEX, :])
+        while curr_pos != DEPOT_INDEX:
+            routes[k].append(int(curr_pos))
+            times[k].append(service_time[k][curr_pos])
+            curr_pos = np.argmax(service_indicators_v[k, curr_pos, :])
 
-    f.close()
+    return routes, times
+
+
+def print_solution(solution_output_file, problem, cost_output_file, routes, times, performance):
+    with open(solution_output_file, 'w') as f:
+        output = {"name": problem.name, "routes": routes, "time": times}
+        print(output)
+        json.dump(output, f, indent=4)
 
     with open(cost_output_file, 'w') as f:
-        json.dump(performance, f)
+        print(performance)
+        json.dump(performance, f, indent=4)
+
+
+def callback_on_solution(model, where):
+    if where == GRB.Callback.MIPSOL:
+        model.__cost_list.append(model.cbGet(GRB.Callback.MIPSOL_OBJ))
+        model.__time_list.append(model.cbGet(GRB.Callback.RUNTIME))
+        performance = {'name': model.__problem.name, 'cost': model.__cost_list, 'time': model.__time_list, 'optimal': False}
+        vehicles = model.__problem.num_vehicles
+        nodes = len(model.__problem.nodes)
+        service_indicators = model.__service_indicators.flatten()
+        service_indicators_v = np.array(model.cbGetSolution(service_indicators)).reshape(vehicles, nodes, nodes)
+        service_time = model.__service_time.flatten()
+        service_time_v = np.array(model.cbGetSolution(service_time)).reshape((vehicles, nodes))
+        routes, times = get_solution(vehicles, nodes, service_indicators_v, service_time_v)
+        print_solution(model.__solution_file, model.__problem, model.__cost_file, routes, times, performance)
 
 
 def main(argv, hint=False):
@@ -166,7 +190,7 @@ def main(argv, hint=False):
     perturbated_output_file = ""
 
     cost_output_file = ""
-    max_run_time = 30
+    threads = 1
     help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
                    '-O <perturbed solution outputfile> -c <cost outputfile> -t <time limit>'
     try:
@@ -189,15 +213,17 @@ def main(argv, hint=False):
             perturbated_output_file = arg
         elif opt in ("-c", "--cost"):
             cost_output_file = arg
-        elif opt in ("-t", "--time"):
-            max_run_time = int(arg)
+        elif opt in ("-t", "--threads"):
+            threads = arg
 
     problem = VRPTW_util.VRPTWInstance.load(file_name)
     perturbated_problem = VRPTW_util.VRPTWInstance.load(perturbated_file_name)
-    solution_route = VRPTW_util.load_solution(solution_file)
+    solution = VRPTW_util.load_routes(solution_file)
+    solution_route = solution['routes']
+    solution_time = solution['time']
     vehicles, nodes = problem.num_vehicles, len(problem.nodes)
 
-    model, service_indicators, service_time, distance_map, time_window = model_initialization(perturbated_problem)
+    model, service_indicators, service_time, distance_map, _ = model_initialization(perturbated_problem)
 
     # timewindow for the original problem
     original_time_window = [[], []]
@@ -214,8 +240,8 @@ def main(argv, hint=False):
         curr_pos = DEPOT_INDEX
         if hint:
             hint_pri = len(solution_route[k])
-        for pos in solution_route[k]:
-            service_time_v[k, pos] = max(service_time_v[k, curr_pos] + distance_map[curr_pos, pos], original_time_window[0][pos])
+        for i, pos in enumerate(solution_route[k]):
+            service_time_v[k, pos] = solution_time[k][i]
 
             # Use the original route as a hint for the mpp route
             if hint_pri > 0 and hint:
@@ -240,43 +266,27 @@ def main(argv, hint=False):
                             "route_check^%g_%g" % (k, i))
             difference_in_travels.append(route_change_indicator)
 
+    model.setParam('Threads', threads)
     model.setObjective(gp.quicksum(difference_in_travels), GRB.MINIMIZE)
+    model.__cost_list = []
+    model.__time_list = []
+    model.__cost_file = cost_output_file
+    model.__solution_file = perturbated_output_file
     model.update()
 
-    time_limit = 0
-    mpp_run_time = 0
-    performance = {"cost": [], "time": []}
-    while mpp_run_time >= time_limit and time_limit < max_run_time:
-        time_limit = min(time_limit + 10, max_run_time)
+    mpp_start = time.perf_counter()
+    model.optimize(callback_on_solution)
+    mpp_end = time.perf_counter()
+    mpp_run_time = mpp_end - mpp_start
 
-        mpp_start = time.perf_counter()
-        model.reset()
-        model.setParam("TimeLimit", time_limit)
-        model.optimize()
-
-        if model.MIPGap != GRB.INFINITY:
-            mpp_opt_sol = model.objVal
-            performance["cost"].append(mpp_opt_sol)
-        else:
-            performance["cost"].append("--")
-
-        mpp_end = time.perf_counter()
-        mpp_run_time = mpp_end - mpp_start
-        performance["time"].append(min(time_limit, mpp_run_time))
-
-    service_indicators_v = np.array([v.x for v in service_indicators.flatten()]).reshape((vehicles, nodes, nodes))
-
-    mpp_opt_routes = [[] for _ in range(vehicles)]
-    for k in range(vehicles):
-        curr_pos = np.argmax(service_indicators_v[k, DEPOT_INDEX, :])
-        while curr_pos != DEPOT_INDEX:
-            mpp_opt_routes[k].append(curr_pos)
-            curr_pos = np.argmax(service_indicators_v[k, curr_pos, :])
-
-    print_solution(perturbated_output_file, perturbated_problem, cost_output_file, mpp_opt_routes, performance)
-
-    with open(cost_file, "w") as f:
-        f.write(str(mpp_opt_sol) + '\n')
+    if model.Status == gp.GRB.OPTIMAL:
+        model.__cost_list.append(model.ObjVal)
+        model.__time_list.append(mpp_run_time)
+        performance = {"name": problem.name, "cost": model.__cost_list, "time": model.__time_list, "optimal": True}
+        service_indicators_v = np.array([v.x for v in service_indicators.flatten()]).reshape((vehicles, nodes, nodes))
+        service_time_v = np.array([v.x for v in service_time.flatten()]).reshape((vehicles, nodes))
+        mpp_opt_routes, mpp_opt_times = get_solution(vehicles, nodes, service_indicators_v, service_time_v)
+        print_solution(perturbated_output_file, perturbated_problem, cost_output_file, mpp_opt_routes, mpp_opt_times, performance)
 
 
 if __name__ == '__main__':

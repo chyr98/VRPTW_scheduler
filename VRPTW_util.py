@@ -1,6 +1,7 @@
 from __future__ import annotations
+import json
 import math
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class Node:
@@ -35,21 +36,6 @@ class Node:
         :return: the distance
         """
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
-
-
-def dump_routes(problem_name: str, routes: List[List[int]], filename: str) -> None:
-    """
-    Dump routes to the file
-
-    :param problem_name: the name of the problem
-    :param routes: routes
-    :param filename: the filename to dump
-    """
-    with open(filename, 'w') as f:
-        f.write('# {}\n'.format(problem_name))
-        f.write(str(len(routes)) + '\n')
-        for r in routes:
-            f.write(' '.join([str(c) for c in r]) + '\n')
 
 
 class VRPTWInstance:
@@ -128,6 +114,42 @@ class VRPTWInstance:
                 f.write('{} {} {} {}\n'.format(
                     node.x, node.y, int(node.a), int(node.b)))
 
+    def dump_routes(self, routes: List[List[int]], filename: str) -> None:
+        """
+        Dump routes to the file
+
+        :param routes: routes
+        :param filename: the filename to dump
+        """
+        output = {'name': self.name, 'routes': routes}
+
+        with open(filename, 'w') as f:
+            json.dump(output, f, indent=4)
+
+    def dump_routes_with_time(self, routes: List[List[int]], filename: str) -> None:
+        """
+        Dump routes with time steps to the file
+
+        :param routes: routes
+        :param filename: the filename to dump
+        """
+        node_to_vehicle_time = self.get_time(routes)
+
+        if node_to_vehicle_time is not None:
+            vehicle_to_time = []
+
+            for vehicle in range(self.num_vehicles):
+                vehicle_to_time.append([])
+
+                for node in routes[vehicle]:
+                    vehicle_to_time[vehicle].append(node_to_vehicle_time[node][1])
+
+            output = {'name': self.name, 'routes': routes, 'time': vehicle_to_time}
+
+            with open(filename, 'w') as f:
+                json.dump(output, f, indent=4)
+
+
     @classmethod
     def load(cls, filename: str) -> __class__:
         """
@@ -153,7 +175,7 @@ class VRPTWInstance:
         return cls(name, num_vehicles, nodes)
 
 
-def load_solution(filename: str) -> List[List[int]]:
+def load_routes(filename: str) -> Dict[str, Any]:
     """
     Load a solution from a file
 
@@ -161,11 +183,4 @@ def load_solution(filename: str) -> List[List[int]]:
     :return: the solution routes
     """
     with open(filename) as f:
-        f.readline()
-        num_vehicles = int(f.readline().rstrip())
-        routes = []
-
-        for _ in range(num_vehicles):
-            routes.append([int(c) for c in f.readline().split()])
-
-    return routes
+        return json.load(f)

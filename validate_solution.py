@@ -11,7 +11,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     problem = util.VRPTWInstance.load(args.problem)
-    routes = util.load_solution(args.solution)
+    solution = util.load_routes(args.solution)
+    routes = solution['routes']
+    times = solution['time']
     result = problem.get_time(routes)
     total_cost = 0.0
 

@@ -114,7 +114,7 @@ if __name__ == '__main__':
         print(
             'using an existing problem and solution as the original problem and solution...')
         problem1 = util.VRPTWInstance.load(args.original_problem)
-        routes1 = util.load_solution(args.solution)
+        routes1 = util.load_routes(args.solution)
     else:
         print('generating new problem and solution as the original problem and solution...')
         problem1, routes1 = problem_generator.generate_problem(
@@ -126,7 +126,7 @@ if __name__ == '__main__':
 
         if args.solution is not None:
             print('saving a solution for the original problem...')
-            util.dump_routes(problem1.name, routes1, args.solution)
+            problem1.dump_routes_with_time(routes1, args.solution)
 
     print('generating a perturbated problem...')
     perturbated_name = 'perturbated ' + problem1.name
@@ -137,4 +137,4 @@ if __name__ == '__main__':
 
     if args.perturbated_solution is not None:
         print('saving a solution for the perturbated problem...')
-        util.dump_routes(problem2.name, routes2, args.perturbated_solution)
+        problem2.dump_routes_with_time(problem2.name, routes2, args.perturbated_solution)
