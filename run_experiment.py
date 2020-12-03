@@ -42,7 +42,7 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
         benchmark_dir = os.path.dirname(problem)
         original_problem_name = 'original_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.txt'.format(**params)
         original_problem = os.path.join(benchmark_dir, original_problem_name)
-        original_solution_name = 'solution_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.txt'.format(**params)
+        original_solution_name = 'solution_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.json'.format(**params)
         original_solution = os.path.join(benchmark_dir, original_solution_name)
 
         if not os.path.exists(original_problem):
@@ -50,8 +50,8 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
         elif not os.path.exists(original_solution):
             result['error'] = 'the original solution does not exist'
         else:
-            output_file = os.path.join(output_dir, 'solution.txt')
-            cost_file = os.path.join(output_dir, 'cost.txt')
+            output_file = os.path.join(output_dir, 'solution.json')
+            cost_file = os.path.join(output_dir, 'cost.json')
             cmd_to_run = cmd.format(
                 **{'original_problem': original_problem,
                    'original_solution': original_solution,

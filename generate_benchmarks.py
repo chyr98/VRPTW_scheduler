@@ -30,7 +30,7 @@ for v in NUM_VEHICLES:
                         name, v, x_y_limit, x_y_limit, c, tw_limit)
                     problem_filename = 'original_v{}_c{}_tw{}_xy{}_{}.txt'.format(
                         v, c, tw_limit, x_y_limit, i)
-                    solution_filename = 'solution_v{}_c{}_tw{}_xy{}_{}.txt'.format(
+                    solution_filename = 'solution_v{}_c{}_tw{}_xy{}_{}.json'.format(
                         v, c, tw_limit, x_y_limit, i)
                     problem1.dump(os.path.join('benchmarks', problem_filename))
                     problem1.dump_routes_with_time(routes1, os.path.join('benchmarks', solution_filename))
