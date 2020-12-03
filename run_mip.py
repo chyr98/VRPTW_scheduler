@@ -75,7 +75,6 @@ class MyProgressListener(SolutionRecorder):
                 json.dump(data, f, ensure_ascii=False, indent=4)
 
             solution = extract_solution(self.problem, s)
-            print(solution)
 
             with open(self.solution_file, 'w') as f:
                 json.dump(solution, f, ensure_ascii=False, indent=4)
@@ -104,7 +103,6 @@ def get_time_for_sln(prob, sln, time):
         if last != -1:
             total_time = last_time + prob.distance(last, 0)
             text += ', 0: {:.2f}'.format(total_time)
-    print(time)
 
     return st
 

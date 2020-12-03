@@ -6,12 +6,12 @@ import problem_generator
 import VRPTW_util as util
 
 
-NUM_VEHICLES = [1, 2, 4, 8]
-NUM_CUSTOMERS = [4, 16, 64]
-TIME_WINDOW_LIMIT = [4, 8, 16]
-AXIS_LIMIT = [16]
-NUM_PERTURBATIONS = [1, 2, 4, 8]
-NUM_INSTANCES = 5
+NUM_VEHICLES = [16]
+NUM_CUSTOMERS = [64, 128, 256]
+TIME_WINDOW_LIMIT = [16]
+AXIS_LIMIT = [32]
+NUM_PERTURBATIONS = [2, 4, 8, 16]
+NUM_INSTANCES = 1
 
 random.seed(1234)
 os.makedirs('benchmarks', exist_ok=True)
