@@ -181,7 +181,7 @@ def callback_on_solution(model, where):
         print_solution(model.__solution_file, model.__problem, model.__cost_file, routes, times, performance)
 
 
-def main(argv, hint=False):
+def main(argv):
     file_name = ""
     solution_file = ""
     perturbated_file_name = ""
@@ -189,10 +189,11 @@ def main(argv, hint=False):
 
     cost_output_file = ""
     threads = 1
+    hint = False
     help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
-                   '-O <perturbed solution outputfile> -c <cost outputfile> -t <time limit>'
+                   '-O <perturbed solution outputfile> -c <cost outputfile> -t <time limit> -g <any>'
     try:
-        opts, args = getopt.getopt(argv, "hi:I:s:O:c:t:", ["ifile=", "Ifile=", "sfile=", "Ofile=", "cost=", "time="])
+        opts, args = getopt.getopt(argv, "hi:I:s:O:c:t:g", ["ifile=", "Ifile=", "sfile=", "Ofile=", "cost=", "time=", "hint="])
         
     except getopt.GetoptError:
         print(help_message)
@@ -213,6 +214,8 @@ def main(argv, hint=False):
             cost_output_file = arg
         elif opt in ("-t", "--threads"):
             threads = arg
+        elif opt in ("-g","--hint"):
+            hint = True
 
     problem = VRPTW_util.VRPTWInstance.load(file_name)
     perturbated_problem = VRPTW_util.VRPTWInstance.load(perturbated_file_name)
@@ -236,6 +239,7 @@ def main(argv, hint=False):
     service_time_v = np.zeros((vehicles, nodes))
     for k in range(vehicles):
         curr_pos = DEPOT_INDEX
+        hint_pri = 0
         if hint:
             hint_pri = len(solution_route[k])
         for i, pos in enumerate(solution_route[k]):
@@ -292,4 +296,4 @@ if __name__ == '__main__':
     #          "-s benchmarks/solution_v4_c64_tw16_xy16_0.txt -O perturbed_opt_solution.txt -c opt_cost.txt -t 180"
     
     #main(message.split()[1:], hint=True)
-    main(sys.argv[1:], hint=True)
+    main(sys.argv[1:])
