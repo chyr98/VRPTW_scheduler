@@ -11,7 +11,7 @@ python3 problem_generator.py \
   --num-customers 5 \
   --tw-limit 3 \
   --output problem1.txt \
-  --solution solution_problem1.txt \
+  --solution solution_problem1.json \
   --seed 1234
 ```
 
@@ -41,7 +41,7 @@ python3 mpp_generator.py \
   --num-perturbations 3 \
   --original-output problem1.txt \
   --perturbated-output perturbated_problem1.txt \
-  --solution solution_problem1.txt \
+  --solution solution_problem1.json \
   --seed 1234
 ```
 
@@ -50,7 +50,12 @@ python3 mpp_generator.py \
 - `--original-problem/-o`: the path of the original problem (required)
 - `--perturbated-problem/-p`: the path to save the perturbated problem (required)
 - `--solution/-s`: The path of the original solution (required)
-- `--pertrubated-solution/-q`: the path to save the solution used for generating the perturbated problem (optional)
+
+We generated a benchmark set using the following program.
+
+```bash
+python3 generate_benchmarks.py
+```
 
 ### Problem Format
 
@@ -75,8 +80,9 @@ python3 mpp_generator.py \
   - the fourth column is the due time
 
 ### Solution Format
+A solution is described in the following JSON file.
 
-```
+```json
 {
   "name": "problem1",
   "routes": [
@@ -95,6 +101,7 @@ python3 mpp_generator.py \
   - customers are listed in the order of the visits in each line
   - the depot is omitted
 - "time describes the service time
+  - each list describes the service time for each customer on a route
 
 ## Solution Validator
 
@@ -168,7 +175,7 @@ python3 run_experiment.py \
 The file contains a list of mehtods.
 "name" specifies the name of the method.
 "cmd" specifies the command to run.
-`{original_problme}`, `{perturbated_problem}`, `{original_solution}`, and `{output}` are automatically replaced by appropriate file names by `run_experiment.py`.
+`{original_problme}`, `{perturbated_problem}`, `{original_solution}`, `{output}`, and `{cost}` are automatically replaced by appropriate file names by `run_experiment.py`.
 
 
 ```json
