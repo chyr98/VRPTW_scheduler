@@ -53,7 +53,7 @@ def average_result(result, methods, group_by_params, fields):
 def create_table(result, methods, params, fields):
     texts = [
         "\\begin{table}[htb]",
-        "  \\begin{tabular}{c|" + "|".join(["r" * len(fields) for _ in methods]) + "}",
+        "  \\begin{tabular}{l|" + "|".join(["r" * len(fields) for _ in methods]) + "}",
         "    & " + " & ".join(["\\multicolumn{" + str(len(fields)) + "}{c}{" + m + "}" for m in methods]) + " \\\\",
         "    " + (" & " + " & ".join(fields)) * len(methods) + " \\\\",
         "  \\hline"]
@@ -66,7 +66,7 @@ def create_table(result, methods, params, fields):
                 if f not in result[key][m] or result[key][m][f] is None:
                     line += " & -"
                 else:
-                    line += " & {:.2f}".format(result[key][m][f])
+                    line += " & {:.1f}".format(result[key][m][f])
 
         line += " \\\\"
         texts.append(line)
