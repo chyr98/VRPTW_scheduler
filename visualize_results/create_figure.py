@@ -35,7 +35,7 @@ def create_figure(methods, method_to_result, output):
     ax = fig.add_subplot(111)
 
     for m in methods:
-        ax.plot(method_to_result[m]['time'], method_to_result[m]['cost'], label=m)
+        ax.plot(method_to_result[m]['time'], method_to_result[m]['cost'], label=m, marker='o', markersize=1, linewidth=0.5)
 
     ax.set_xlabel('time (s)', fontsize=9)
     ax.set_ylabel('cost', fontsize=9)
