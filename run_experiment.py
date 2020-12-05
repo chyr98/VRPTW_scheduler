@@ -8,8 +8,6 @@ import shutil
 import time
 from typing import Any, Dict, List, Tuple, Optional
 
-import VRPTW_util as util
-
 
 def parse_params(problem: str) -> Dict[str, Any]:
     pattern = re.compile(r'perturbated(?P<p>\d+)_v(?P<v>\d+)_c(?P<c>\d+)_tw(?P<tw>\d+)_xy(?P<xy>\d+)_(?P<id>\d+)\.txt')
@@ -28,23 +26,6 @@ def parse_params(problem: str) -> Dict[str, Any]:
     return params
 
 
-def service_time_difference(original_problem: util.VRPTWInstance,  
-                            original_solution: List[List[int]],
-                            perturbated_problem: util.VRPTWInstance,
-                            perturbated_solution: List[int]) -> float:
-    original_time = original_problem.get_time(original_solution)
-    perturbated_time = perturbated_problem.get_time(perturbated_solution)
-    value = 0.0
-
-    for (v1, t1), (v2, t2) in zip(original_time[1:], perturbated_time[1:]):
-        if v1 != v2:
-            value += t1 + t2
-        else:
-            value += abs(t1 - t2)
-
-    return value
-
-
 def run_process(run_id: int, method: str, cmd: str, problem: str,
                 output_dir: str, timeout: int) -> Dict[str, Any]:
     if os.path.exists(output_dir):
@@ -61,23 +42,20 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
         benchmark_dir = os.path.dirname(problem)
         original_problem_name = 'original_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.txt'.format(**params)
         original_problem = os.path.join(benchmark_dir, original_problem_name)
-        original_solution_name = 'solution_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.txt'.format(**params)
+        original_solution_name = 'solution_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.json'.format(**params)
         original_solution = os.path.join(benchmark_dir, original_solution_name)
-        perturbated_solution_name = 'perturbated{num_perturbations}_solution_v{num_vehicles}_c{num_customers}_tw{time_window_parameter}_xy{xy_limit}_{problem_id}.txt'.format(**params)
-        perturbated_solution = os.path.join(benchmark_dir, perturbated_solution_name)
 
         if not os.path.exists(original_problem):
             result['error'] = 'the original problem does not exist'
         elif not os.path.exists(original_solution):
             result['error'] = 'the original solution does not exist'
         else:
-            output_file = os.path.join(output_dir, 'solution.txt')
-            cost_file = os.path.join(output_dir, 'cost.txt')
+            output_file = os.path.join(output_dir, 'solution.json')
+            cost_file = os.path.join(output_dir, 'cost.json')
             cmd_to_run = cmd.format(
                 **{'original_problem': original_problem,
                    'original_solution': original_solution,
                    'perturbated_problem': problem,
-                   'perturbated_solution': perturbated_solution,
                    'output': output_file,
                    'cost': cost_file})
             start = time.perf_counter()
@@ -88,11 +66,19 @@ def run_process(run_id: int, method: str, cmd: str, problem: str,
             end = time.perf_counter()
 
             if os.path.exists(cost_file):
-                result['solved'] = 1
-                result['time'] = end - start
-
                 with open(cost_file) as f:
-                    result['cost'] = float(f.read().rstrip())
+                    cost_result = json.load(f)
+
+                result['solved'] = 1
+                result['optimal'] = int(cost_result['optimal'])
+                result['time'] = end - start
+                result['time_to_feasible'] = cost_result['time'][0]
+
+                if cost_result['optimal']:
+                    result['time_to_optimal'] = cost_result['time'][-1]
+
+                result['cost'] = cost_result['cost'][-1]
+                result['time_vs_cost'] = cost_result
             else:
                 result['solved'] = 0
 

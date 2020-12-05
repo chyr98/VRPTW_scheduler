@@ -11,7 +11,7 @@ python3 problem_generator.py \
   --num-customers 5 \
   --tw-limit 3 \
   --output problem1.txt \
-  --solution solution_problem1.txt \
+  --solution solution_problem1.json \
   --seed 1234
 ```
 
@@ -41,7 +41,7 @@ python3 mpp_generator.py \
   --num-perturbations 3 \
   --original-output problem1.txt \
   --perturbated-output perturbated_problem1.txt \
-  --solution solution_problem1.txt \
+  --solution solution_problem1.json \
   --seed 1234
 ```
 
@@ -50,7 +50,12 @@ python3 mpp_generator.py \
 - `--original-problem/-o`: the path of the original problem (required)
 - `--perturbated-problem/-p`: the path to save the perturbated problem (required)
 - `--solution/-s`: The path of the original solution (required)
-- `--pertrubated-solution/-q`: the path to save the solution used for generating the perturbated problem (optional)
+
+We generated a benchmark set using the following program.
+
+```bash
+python3 generate_benchmarks.py
+```
 
 ### Problem Format
 
@@ -75,25 +80,33 @@ python3 mpp_generator.py \
   - the fourth column is the due time
 
 ### Solution Format
+A solution is described in the following JSON file.
 
+```json
+{
+  "name": "problem1",
+  "routes": [
+    [1, 2],
+    [3, 4]
+  ],
+  "time": [
+    [10, 20],
+    [15, 30]
+  ]
+}
 ```
-# prolem1
-2
-1 2
-3 4
-```
-- the first line is problem name
-- the second line is the number of vehicles
-- the subsequenting lines describe routes
-  - each line describes one route
+- "routes" describes routes
+  - each list describes one route
   - routes are listed in the order of the indices of the vehicles
   - customers are listed in the order of the visits in each line
   - the depot is omitted
+- "time describes the service time
+  - each list describes the service time for each customer on a route
 
 ## Solution Validator
 
 ```bash
-python3 validate_solution.py --problem problem1.txt --solution solution_problem1.txt
+python3 validate_solution.py --problem problem1.txt --solution solution_problem1.json
 vehicle 0
         0: 0.0, 3: 8.54, 4: 14.63, 2: 15.63
 vehicle 1
@@ -101,7 +114,7 @@ vehicle 1
 total cost: 34.17
 ```
 
-- output routes of vehicles and the starting time at each customer
+- output routes of vehicles and the service time at each customer
 
 
 
@@ -162,7 +175,7 @@ python3 run_experiment.py \
 The file contains a list of mehtods.
 "name" specifies the name of the method.
 "cmd" specifies the command to run.
-`{original_problme}`, `{perturbated_problem}`, `{original_solution}`, and `{output}` are automatically replaced by appropriate file names by `run_experiment.py`.
+`{original_problme}`, `{perturbated_problem}`, `{original_solution}`, `{output}`, and `{cost}` are automatically replaced by appropriate file names by `run_experiment.py`.
 
 
 ```json
@@ -173,7 +186,7 @@ The file contains a list of mehtods.
   },
   {
     "name": "LNS",
-    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --perturbated-solution {perturbated_solution} --output {output} --cost {cost} --t_lim 178"
+    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --t_lim 178"
   },
   {
     "name": "MIP",

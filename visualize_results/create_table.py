@@ -53,9 +53,9 @@ def average_result(result, methods, group_by_params, fields):
 def create_table(result, methods, params, fields):
     texts = [
         "\\begin{table}[htb]",
-        "  \\begin{tabular}{c|" + "|".join(["r" * len(fields) for _ in methods]) + "}",
+        "  \\begin{tabular}{l|" + "|".join(["r" * len(fields) for _ in methods]) + "}",
         "    & " + " & ".join(["\\multicolumn{" + str(len(fields)) + "}{c}{" + m + "}" for m in methods]) + " \\\\",
-        "    " + " & {} & {} & {}".format(*tuple(fields)) * len(methods) + " \\\\",
+        "    " + (" & " + " & ".join(fields)) * len(methods) + " \\\\",
         "  \\hline"]
 
     for key in sorted(result.keys()):
@@ -66,7 +66,7 @@ def create_table(result, methods, params, fields):
                 if f not in result[key][m] or result[key][m][f] is None:
                     line += " & -"
                 else:
-                    line += " & {:.2f}".format(result[key][m][f])
+                    line += " & {:.1f}".format(result[key][m][f])
 
         line += " \\\\"
         texts.append(line)
@@ -82,11 +82,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', '-i', type=str, required=True)
     parser.add_argument('--methods', '-m', type=str, nargs='+',
-                        default=['backtrack', 'MIP', 'LNS'])
+                        default=['CPLEX', 'Gurobi', 'LNS'])
     parser.add_argument('--params', '-p', type=str, nargs='+',
-                        default=['num_vehicles', 'num_perturbations'])
+                        default=['num_customers', 'num_perturbations'])
     parser.add_argument('--fields', '-f', type=str, nargs='+',
-                        default=['solved', 'cost', 'time'])
+                        default=['cost', 'time_to_feasible', 'time_to_optimal'])
     parser.add_argument('--output', '-o', type=str, required=True)
     args = parser.parse_args()
 
