@@ -13,39 +13,7 @@ DEPOT_INDEX = 0
 LARGE = 1e7
 
 
-
-class VRPTWNode:
-    def __init__(self, decision, parent, children):
-        self.decision = decision
-        self.constraint = None
-        self.parent = parent
-        self.children = children
-
-
-class VRPTWTree:
-    def __init__(self, model, service_indicators):
-        self.model = model
-        self.service_indicators = service_indicators
-        self.root = VRPTWNode([], None, [])
-        self.curr_node = self.root
-
-    def backtrack(self, best_sol):
-        if self.curr_node.parent is not None:
-            self.model.remove(self.curr_node.constraint)
-            self.curr_node = self.curr_node.parent
-            self.model.update()
-
-
-def relaxed_solution(model: gp.Model):
-    relaxed_model = model.relax()
-    relaxed_model.optimize()
-    if relaxed_model.getAttr(GRB.Attr.Status) == GRB.INFEASIBLE:
-        return LARGE
-    else:
-        return relaxed_model.objVal
-
-
-def model_initialization(problem: VRPTW_util.VRPTWInstance):
+def model_initialization(problem: VRPTW_util.VRPTWInstance, equality=False):
     vehicles, nodes = problem.num_vehicles, len(problem.nodes)
 
     # MIP model setup
@@ -119,8 +87,10 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
                     gp.quicksum(service_indicators[k, i, :].flatten()) * time_window[1][i] >= service_time[k, i],
                     "ub_twC^%g_%g" % (k, i))
 
-            model.addConstr(gp.quicksum(service_indicators[k, i, :].flatten()) <= 1, "travel_limit")
-            model.addConstr(gp.quicksum(service_indicators[k, :, i].flatten()) <= 1, "travel_limit")
+            # No loop in each vehicle's route
+            if not equality:
+                model.addConstr(gp.quicksum(service_indicators[k, i, :].flatten()) <= 1, "travel_limit")
+                model.addConstr(gp.quicksum(service_indicators[k, :, i].flatten()) <= 1, "travel_limit")
 
             # Travel time constraints, start time for each vehicle is 0
             model.addConstr(distance_map[DEPOT_INDEX, i]- service_time[k, i]
@@ -137,7 +107,10 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance):
 
     # Service completion constraints, node 0 is depot
     for j in customer_indices:
-        model.addConstr(gp.quicksum(service_indicators[:, :, j].flatten()) >= 1, "completion_%g" % j)
+        if equality:
+            model.addConstr(gp.quicksum(service_indicators[:, :, j].flatten()) == 1, "completion_%g" % j)
+        else:
+            model.addConstr(gp.quicksum(service_indicators[:, :, j].flatten()) >= 1, "completion_%g" % j)
 
     model.__service_indicators = service_indicators
     model.__service_time = service_time
@@ -192,11 +165,11 @@ def main(argv, mpp_start):
 
     cost_output_file = ""
     threads = 1
-    hint = False
+    equality = False
     help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
                    '-O <perturbed solution outputfile> -c <cost outputfile> -t <time limit> -g <any>'
     try:
-        opts, args = getopt.getopt(argv, "hi:I:s:O:c:t:g", ["ifile=", "Ifile=", "sfile=", "Ofile=", "cost=", "time=", "hint="])
+        opts, args = getopt.getopt(argv, "hi:I:s:O:c:t:g", ["ifile=", "Ifile=", "sfile=", "Ofile=", "cost=", "time=", "equality="])
         
     except getopt.GetoptError:
         print(help_message)
@@ -216,9 +189,9 @@ def main(argv, mpp_start):
         elif opt in ("-c", "--cost"):
             cost_output_file = arg
         elif opt in ("-t", "--threads"):
-            threads = arg
-        elif opt in ("-g","--hint"):
-            hint = True
+            threads = int(arg)
+        elif opt in ("-g","--equality"):
+            equality = True
 
     problem = VRPTW_util.VRPTWInstance.load(file_name)
     perturbated_problem = VRPTW_util.VRPTWInstance.load(perturbated_file_name)
@@ -227,7 +200,7 @@ def main(argv, mpp_start):
     solution_time = solution['time']
     vehicles, nodes = problem.num_vehicles, len(problem.nodes)
 
-    model, service_indicators, service_time, distance_map, _ = model_initialization(perturbated_problem)
+    model, service_indicators, service_time, distance_map, _ = model_initialization(perturbated_problem, equality)
 
     # timewindow for the original problem
     original_time_window = [[], []]
@@ -242,18 +215,9 @@ def main(argv, mpp_start):
     service_time_v = np.zeros((vehicles, nodes))
     for k in range(vehicles):
         curr_pos = DEPOT_INDEX
-        hint_pri = 0
-        if hint:
-            hint_pri = len(solution_route[k])
+
         for i, pos in enumerate(solution_route[k]):
             service_time_v[k, pos] = solution_time[k][i]
-
-            # Use the original route as a hint for the mpp route
-            if hint_pri > 0 and hint:
-                service_indicators[k, curr_pos, pos].setAttr(GRB.Attr.VarHintVal, 1.0)
-                service_indicators[k, curr_pos, pos].setAttr(GRB.Attr.VarHintPri, hint_pri)
-
-                hint_pri = hint_pri - 1
             curr_pos = pos
 
         service_time_v[k, DEPOT_INDEX] = service_time_v[k, curr_pos] + distance_map[curr_pos, DEPOT_INDEX]
@@ -299,5 +263,5 @@ if __name__ == '__main__':
     #message = "backtrack_search.py -i benchmarks/original_v4_c64_tw16_xy16_0.txt -I benchmarks/perturbated4_v4_c64_tw16_xy16_0.txt " \
     #          "-s benchmarks/solution_v4_c64_tw16_xy16_0.txt -O perturbed_opt_solution.txt -c opt_cost.txt -t 180"
     
-    #main(message.split()[1:], hint=True)
+    #main(message.split()[1:])
     main(sys.argv[1:], mpp_start)
