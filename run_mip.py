@@ -22,7 +22,7 @@ def extract_solution(problem, mdl):
     # # Get values for decision variables used in the model
     num_vehicles = problem.num_vehicles
     num_nodes = len(problem.nodes)
-    vehicle_to_node_time = [sorted([(mdl.get_value("st_{}_{}".format(i,j)), i) for i in range(num_nodes)]) 
+    vehicle_to_node_time = [sorted([(mdl.get_value("st_{}_{}".format(i,j)), i) for i in range(num_nodes)])
                             for j in range(num_vehicles)]
 
     routes = []
@@ -120,7 +120,7 @@ def check_feasibility(pert_st, lb, ub, tol=1e-9):
     return failed
 
 
-def build_MIP(orig_prob, solution, pert_prob, threads):
+def build_MIP(orig_prob, solution, pert_prob, use_stronger_constraint, threads):
     num_vehicles = orig_prob.num_vehicles
     num_nodes = len(orig_prob.nodes)
     orig_sln = solution['routes']
@@ -166,19 +166,33 @@ def build_MIP(orig_prob, solution, pert_prob, threads):
         for i in range(num_nodes):
             m.add_constraint(x[(i,i,k)] == 0)
 
-           # m.add_constraint(x[(sink_id,i,k)] == 0)
-            #m.add_constraint(x[(i, source_id, k)] == 0)
+    # From Jasper's model
+    if use_stronger_constraint:
+        for k in range(num_vehicles):
+            for j in range(num_nodes):
+                m.add_constraint(
+                    m.sum(x[(i,j,k)] for i in range(num_nodes)) <= 1 )
 
+        for k in range(num_vehicles):
+            for i in range(num_nodes):
+                m.add_constraint(
+                    m.sum(x[(i,j,k)] for j in range(num_nodes)) <= 1 )
 
-    for j in range(1, num_nodes):
-        m.add_constraint(
-            m.sum(x[(i,j,k)] for i in range(num_nodes) for k in range(num_vehicles)) == 1
-        )
+        for j in range(num_nodes):
+            m.add_constraint(
+                m.sum(x[(i,j,k)] for i in range(num_nodes) for k in range(num_vehicles)) >= 1 )
 
-    for i in range(1, num_nodes):
-        m.add_constraint(
-            m.sum(x[(i,j,k)] for j in range(num_nodes) for k in range(num_vehicles)) == 1
-        )
+    # From Louis's model
+    else:
+        for j in range(1, num_nodes):
+            m.add_constraint(
+                m.sum(x[(i,j,k)] for i in range(num_nodes) for k in range(num_vehicles)) == 1
+            )
+
+        for i in range(1, num_nodes):
+            m.add_constraint(
+                m.sum(x[(i,j,k)] for j in range(num_nodes) for k in range(num_vehicles)) == 1
+            )
 
     for k in range(num_vehicles):
         for i in range(0, num_nodes):
@@ -192,10 +206,7 @@ def build_MIP(orig_prob, solution, pert_prob, threads):
 
     for k in range(num_vehicles):
         for i in range(num_nodes):
-            #m.add_constraint(s[(i,k)] <= b[i] * m.sum(x[i,j,k] for j in range(num_nodes)) )
-            m.add_constraint(s[(i,k)] >= lb[i] * m.sum(x[i,j,k] for j in range(num_nodes)) )
-
-            #if i < sink_id:
+            m.add_constraint(s[(i,k)] >= lb[i] * m.sum(x[i,j,k] for j in range(num_nodes)))
             m.add_constraint(s[(i,k)] <= ub[i] * m.sum(x[i,j,k] for j in range(num_nodes)))
 
 
@@ -230,30 +241,38 @@ def traverse_path(mat, li, i = 0, left=False):
     return traverse_path(mat, li, i, left=True)
 
 
-def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost_file, threads, st):
-    orig_prob = util.VRPTWInstance.load(original_problem)
-    solution = util.load_routes(original_solution)
-    pert_prob = util.VRPTWInstance.load(perturbated_problem)
-    mdl, _, _ = build_MIP(orig_prob, solution, pert_prob, threads)
+def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost_file, threads):
+    use_stronger_constraints = [False, True]
+    for use_stronger_constraint in use_stronger_constraints:
 
-    listener = MyProgressListener(pert_prob, output, cost_file, st)
-    mdl.add_progress_listener(listener)
-    mdl.solve(log_output=True)
+        st = time.time()
 
-    listener.costs.append(mdl.objective_value)
-    listener.times.append(time.time()-listener.st)
-    result = {'cost': listener.costs, 'time': listener.times, 'optimal': True}
-    solution = extract_solution(pert_prob, mdl.solution)
+        stronger = "inequality" if use_stronger_constraint else "equality"
+        output = output.replace(".", "-{}.".format(stronger))
+        cost_file = cost_file.replace(".", "-{}.".format(stronger))
 
-    with open(output, 'w') as f:
-        json.dump(solution, f, ensure_ascii=False, indent=4)
 
-    with open(cost_file, 'w') as f:
-        json.dump(result, f, ensure_ascii=False, indent=4)
-        
+        orig_prob = util.VRPTWInstance.load(original_problem)
+        solution = util.load_routes(original_solution)
+        pert_prob = util.VRPTWInstance.load(perturbated_problem)
+        mdl, _, _ = build_MIP(orig_prob, solution, pert_prob, use_stronger_constraint, threads)
+
+        listener = MyProgressListener(pert_prob, output, cost_file, st)
+        mdl.add_progress_listener(listener)
+        msol = mdl.solve()
+
+        listener.costs.append(mdl.objective_value)
+        listener.times.append(time.time()-listener.st)
+        result = {'cost': listener.costs, 'time': listener.times, 'optimal': True}
+        solution = extract_solution(pert_prob, mdl.solution)
+
+        with open(output, 'w') as f:
+            json.dump(solution, f, ensure_ascii=False, indent=4)
+
+        with open(cost_file, 'w') as f:
+            json.dump(result, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
-    st = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument('--original-problem', type=str, required=True)
     parser.add_argument('--original-solution', type=str, required=True)
@@ -263,4 +282,4 @@ if __name__ == "__main__":
     parser.add_argument('--threads', type=int, default=1)
     args = parser.parse_args()
 
-    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost, args.threads, st)
+    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost, args.threads)
