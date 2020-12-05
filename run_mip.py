@@ -248,8 +248,8 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
         st = time.time()
 
         stronger = "inequality" if use_stronger_constraint else "equality"
-        output = output.replace(".", "-{}.".format(stronger))
-        cost_file = cost_file.replace(".", "-{}.".format(stronger))
+        output_ = output.replace(".", "-{}.".format(stronger))
+        cost_file_ = cost_file.replace(".", "-{}.".format(stronger))
 
 
         orig_prob = util.VRPTWInstance.load(original_problem)
@@ -257,7 +257,7 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
         pert_prob = util.VRPTWInstance.load(perturbated_problem)
         mdl, _, _ = build_MIP(orig_prob, solution, pert_prob, use_stronger_constraint, threads)
 
-        listener = MyProgressListener(pert_prob, output, cost_file, st)
+        listener = MyProgressListener(pert_prob, output_, cost_file_, st)
         mdl.add_progress_listener(listener)
         msol = mdl.solve()
 
@@ -266,10 +266,10 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
         result = {'cost': listener.costs, 'time': listener.times, 'optimal': True}
         solution = extract_solution(pert_prob, mdl.solution)
 
-        with open(output, 'w') as f:
+        with open(output_, 'w') as f:
             json.dump(solution, f, ensure_ascii=False, indent=4)
 
-        with open(cost_file, 'w') as f:
+        with open(cost_file_, 'w') as f:
             json.dump(result, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
