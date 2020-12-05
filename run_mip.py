@@ -250,7 +250,7 @@ def solve_one_problem(original_problem, original_solution, perturbated_problem, 
 
     with open(cost_file, 'w') as f:
         json.dump(result, f, ensure_ascii=False, indent=4)
-    
+        
 
 if __name__ == "__main__":
     st = time.time()
