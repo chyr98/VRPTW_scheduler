@@ -48,7 +48,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', '-i', type=str, required=True)
     parser.add_argument('--methods', '-m', type=str, nargs='+',
-                        default=['CPLEX', 'Gurobi', 'LNS'])
+                        default=['CPLEX1', 'Gurobi1', 'CPLEX2', 'Gurobi2', 'LNS'])
     parser.add_argument('--num-customers', '-c', type=int, default=64)
     parser.add_argument('--num-perturbations', '-p', type=int, default=2)
     parser.add_argument('--output', '-o', type=str, required=True)
