@@ -109,6 +109,7 @@ def model_initialization(problem: VRPTW_util.VRPTWInstance, equality=False):
     for j in customer_indices:
         if equality:
             model.addConstr(gp.quicksum(service_indicators[:, :, j].flatten()) == 1, "completion_%g" % j)
+            model.addConstr(gp.quicksum(service_indicators[:, j, :].flatten()) == 1, "completion2_%g" % j)
         else:
             model.addConstr(gp.quicksum(service_indicators[:, :, j].flatten()) >= 1, "completion_%g" % j)
 
