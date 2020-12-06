@@ -241,36 +241,29 @@ def traverse_path(mat, li, i = 0, left=False):
     return traverse_path(mat, li, i, left=True)
 
 
-def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost_file, threads):
-    use_stronger_constraints = [False, True]
-    for use_stronger_constraint in use_stronger_constraints:
+def solve_one_problem(original_problem, original_solution, perturbated_problem, output, cost_file, threads, use_stronger_constraint=True):
 
-        st = time.time()
+    st = time.time()
 
-        stronger = "inequality" if use_stronger_constraint else "equality"
-        output_ = output.replace(".", "-{}.".format(stronger))
-        cost_file_ = cost_file.replace(".", "-{}.".format(stronger))
+    orig_prob = util.VRPTWInstance.load(original_problem)
+    solution = util.load_routes(original_solution)
+    pert_prob = util.VRPTWInstance.load(perturbated_problem)
+    mdl, _, _ = build_MIP(orig_prob, solution, pert_prob, use_stronger_constraint, threads)
 
+    listener = MyProgressListener(pert_prob, output, cost_file, st)
+    mdl.add_progress_listener(listener)
+    msol = mdl.solve()
 
-        orig_prob = util.VRPTWInstance.load(original_problem)
-        solution = util.load_routes(original_solution)
-        pert_prob = util.VRPTWInstance.load(perturbated_problem)
-        mdl, _, _ = build_MIP(orig_prob, solution, pert_prob, use_stronger_constraint, threads)
+    listener.costs.append(mdl.objective_value)
+    listener.times.append(time.time()-listener.st)
+    result = {'cost': listener.costs, 'time': listener.times, 'optimal': True}
+    solution = extract_solution(pert_prob, mdl.solution)
 
-        listener = MyProgressListener(pert_prob, output_, cost_file_, st)
-        mdl.add_progress_listener(listener)
-        msol = mdl.solve()
+    with open(output, 'w') as f:
+        json.dump(solution, f, ensure_ascii=False, indent=4)
 
-        listener.costs.append(mdl.objective_value)
-        listener.times.append(time.time()-listener.st)
-        result = {'cost': listener.costs, 'time': listener.times, 'optimal': True}
-        solution = extract_solution(pert_prob, mdl.solution)
-
-        with open(output_, 'w') as f:
-            json.dump(solution, f, ensure_ascii=False, indent=4)
-
-        with open(cost_file_, 'w') as f:
-            json.dump(result, f, ensure_ascii=False, indent=4)
+    with open(cost_file, 'w') as f:
+        json.dump(result, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -280,6 +273,8 @@ if __name__ == "__main__":
     parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--cost', type=str, required=True)
     parser.add_argument('--threads', type=int, default=1)
+    parser.add_argument('--use-Jasper-model', type=int, default=1)
+
     args = parser.parse_args()
 
-    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost, args.threads)
+    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost, args.threads, args.use_Jasper_model)
