@@ -49,6 +49,7 @@ def generate_mpp(original_problem: util.VRPTWInstance,
             route = []
 
             for cur in r:
+                # resample the time window for a swapped customer
                 if perturbation_dict[cur] != cur:
                     cur = perturbation_dict[cur]
                     t += perturbated_problem.distance(prev, cur)
@@ -59,6 +60,7 @@ def generate_mpp(original_problem: util.VRPTWInstance,
                     distance = perturbated_problem.distance(prev, cur)
                     t = max(perturbated_problem.nodes[cur].a, t + distance)
 
+                    # resample the time window if infeasible
                     if t > perturbated_problem.nodes[cur].b:
                         a = max(math.floor(t) - random.randint(0, tw_limit), 0)
                         b = math.ceil(t) + random.randint(0, tw_limit)

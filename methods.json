@@ -1,14 +1,22 @@
 [
   {
-    "name": "backtrack",
-    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost}"
-  },
-  {
     "name": "LNS",
-    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --t_lim 3"
+    "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --t_lim 178"
   },
   {
-    "name": "MIP",
+    "name": "CPLEX1",
     "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost}"
+  },
+  {
+    "name": "CPLEX2",
+    "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --use-Jasper-model"
+  },
+  {
+    "name": "Gurobi1",
+    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost} -g"
+  },
+  {
+    "name": "Gurobi2",
+    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost}"
   }
 ]

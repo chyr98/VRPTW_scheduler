@@ -1,6 +1,56 @@
 # MPP in VRPTW
 
-## VRPTW Generator
+All codes are verified with Python 3.7.9.
+
+## Common Resources
+
+### Problem Format
+
+```
+# problem1
+2
+5
+1 6 0 0
+6 6 5 8
+9 9 15 19
+9 3 5 12
+8 9 11 16
+```
+- the first line is problem name
+- the second line is the number of vehicles
+- the third line is the number of customers
+- the subsequenting lines describe customers
+  - each line describes one customer (the first line is the depot)
+  - the first column is the x-coordinate
+  - the second column is the y-coordinate
+  - the third column is the ready time
+  - the fourth column is the due time
+
+### Solution Format
+A solution is described in a following JSON file.
+
+```json
+{
+  "name": "problem1",
+  "routes": [
+    [1, 2],
+    [3, 4]
+  ],
+  "time": [
+    [10.0, 20.0],
+    [15.0, 30.0]
+  ]
+}
+```
+- "routes" describes routes
+  - each list describes one route
+  - routes are listed in the order of the indices of the vehicles
+  - customers are listed in the order of the visits in each line
+  - the depot is omitted
+- "time describes the service time
+  - each list describes the service time for each customer on a route
+
+### VRPTW Generator
 
 ```bash
 python3 problem_generator.py \
@@ -24,7 +74,7 @@ python3 problem_generator.py \
 - `--output/-o`: the path to save the generated problem (required)
 - `--solution/-s`: The path to save the solution used for generating the problem (optional)
 
-## MPP Generator
+### MPP Generator
 Generate MPP by swapping two customers in the original routes.
 If `--original-problem` and `--original-solution` exist, they will be used.
 Otherwise, they will be generated accodring to the same options as `problem_generator.py`.
@@ -51,59 +101,15 @@ python3 mpp_generator.py \
 - `--perturbated-problem/-p`: the path to save the perturbated problem (required)
 - `--solution/-s`: The path of the original solution (required)
 
+### Benchmark Generation
+
 We generated a benchmark set using the following program.
 
 ```bash
 python3 generate_benchmarks.py
 ```
 
-### Problem Format
-
-```
-# problem1
-2
-5
-1 6 0 0
-6 6 5 8
-9 9 15 19
-9 3 5 12
-8 9 11 16
-```
-- the first line is problem name
-- the second line is the number of vehicles
-- the third line is the number of customers
-- the subsequenting lines describe customers
-  - each line describes one customer (the first line is the depot)
-  - the first column is the x-coordinate
-  - the second column is the y-coordinate
-  - the third column is the ready time
-  - the fourth column is the due time
-
-### Solution Format
-A solution is described in the following JSON file.
-
-```json
-{
-  "name": "problem1",
-  "routes": [
-    [1, 2],
-    [3, 4]
-  ],
-  "time": [
-    [10, 20],
-    [15, 30]
-  ]
-}
-```
-- "routes" describes routes
-  - each list describes one route
-  - routes are listed in the order of the indices of the vehicles
-  - customers are listed in the order of the visits in each line
-  - the depot is omitted
-- "time describes the service time
-  - each list describes the service time for each customer on a route
-
-## Solution Validator
+### Solution Validator
 
 ```bash
 python3 validate_solution.py --problem problem1.txt --solution solution_problem1.json
@@ -116,44 +122,94 @@ total cost: 34.17
 
 - output routes of vehicles and the service time at each customer
 
+## Methods
 
+### MIP Models Using CPLEX
 
-## MIP model
+#### Reuirements
+- CPLEX >= 12.9
+- docplex >= 2.11.176
+- numpy >= 1.19.4
 
-run_MIP.py will search for all data instances in the benchmark folder that matches the "params" variable defined in the run_MIP.py file. Also it will save appropriate outputs to the folder "./mip_solution". If this folder does not exist, a new folder will be created.
+#### Run the Code
 
-- Saves all solutions to "./mip_solution" as per format defined in https://gist.github.com/Kurorororo/21ccc9ecbea2191a52f62e4bed2224db
-- Saves all metrics and parameters to "./mip_solution/results.json"
+```bash
+python3 run_mip.py \
+  --original-problem problem1.txt \
+  --original-solution solution1.json \
+  --perturbated-problem problem2.txt \
+  --output solution2.json \
+  --cost cost.json \
+  --thread 1 \
+  --use-Jasper-model 0
+```
 
-```python3 run_MIP.py```
+- `--original-problem`: the path to the file that stores the original VRPTW problem
+- `--original-solution`: the path to the file that stores the perturbed problem
+- `--perturbated-problem`: the path of the output file that stores the solution of MPP
+- `--output`: the path of the output file that stores the solution of MPP
+- `--cost`: the path of the output file that stores the set of costs at different time steps.
+- `--threads`: the number of threads (default: 1)
+- `--use-Jasper-model`: use the equality constraints (model1) if 0 and ineqality constraints (model2) if 1 (default: 1)
 
-This depends on numpy, CPLEX, and docplex.
+### MIP Models Using Gurobi
 
-In addition, for each input parameter set, cost improvement over time is tracked and the data points are saved in ./mip_solutions folder as a JSON object. An example output can be found at ./mip_solutions/mip_results8_v4_c16_tw4_xy16_0.json
+#### Requiremetns
+- Gurobi >= 9.1.0
+- gurobipy >= 9.1.0
+- numpy >= 1.19.4
 
+### Run the Code
 
-## Backtrack Search Model
+```bash
+python3 backtrack_search.py \
+  -i <problem file> \
+  -I <perturbed problem file> \
+  -s <original solution file> \
+  -O <perturbed solution outputfile> \
+  -c <cost file> 
+  -t <threads>
+  -g <any>
+```
 
-backtrack_search.py takes six command line arguments:
+- `-i`: the path to the file that stores the original VRPTW problem
+- `-I`: the path to the file that stores the perturbed problem
+- `-s`: the path of the output file that stores the solution of MPP
+- `-O`: the path of the output file that stores the solution of MPP
+- `-c`: the path of the output file that stores the set of costs at different time steps.
+- `-t`: the number of threads (default: 1)
+- `-g`: use the equality constraints (model1) if there is and ineqality constraints (model2) if not
 
-- The path to the file that stores the original VRPTW problem
-- The path to the file that stores the perturbed problem
-- The path to the solution file of the original problem
-- The path of the output file that stores the solution of MPP
-- The path of the output file that stores the set of costs at different time steps.
-- The time limit for each optimization
+### Large Neighborhood Search (LNS)
 
-Solution route for MPP will be written into the solution file with the given path.\
-Costs vs time steps will be written into the cost file with the given path in the following format\
-  {"cost": [cost1, cost2, ..., costn], "time": [10, 20, ..., time_limit]}
+#### Run the Code
 
-```python3 backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> -O <perturbed solution outputfile> -c <cost file> -t <time limit>```
+```bash
+python3 LNS.py \
+  --original-problem problem1.txt \
+  --original-solution solution1.json \
+  --perturbated-problem problem2.txt \
+  --output solution2.json \
+  --cost cost.json \
+  --frac 0.25 \
+  --d 5 \
+  --t_lim 178 \
+  --t_lim_iter 5
+```
 
-This depends on Gurobi and gurobipy.
+- `--original-problem`: the path to the file that stores the original VRPTW problem
+- `--original-solution`: the path to the file that stores the perturbed problem
+- `--perturbated-problem`: the path of the output file that stores the solution of MPP
+- `--output`: the path of the output file that stores the solution of MPP
+- `--cost`: the path of the output file that stores the set of costs at different time steps.
+- `--frac/-f`: the fraction of visits that will be removed and reinserted for each iteration of local search (default: 0.25)
+- `--d/-d`: parameter for limited discrepancy search (default: 5)
+- `--t_lim/-t`: total time limit in seconds (default: 6)
+- `--t_lim_iter/-ti`: iteration time limit in seconds (default: 5)
 
 ## Experiments
 
-```
+```bash
 python3 run_experiment.py \
   -b preliminary_benchmarks \
   -t 180 \
@@ -181,16 +237,28 @@ The file contains a list of mehtods.
 ```json
 [
   {
-    "name": "backtrack",
-    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost}"
-  },
-  {
     "name": "LNS",
     "cmd": "python3.7 LNS.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --t_lim 178"
   },
   {
-    "name": "MIP",
+    "name": "CPLEX1",
     "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost}"
+  },
+  {
+    "name": "CPLEX2",
+    "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --use-Jasper-model"
+  },
+  {
+    "name": "Gurobi1",
+    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost} -g"
+  },
+  {
+    "name": "Gurobi2",
+    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost}"
   }
 ]
 ```
+
+### Visualization of Experimental Results
+
+`./summarize_results/` containing scripts to create a LaTex table and figures to summarize the results.
