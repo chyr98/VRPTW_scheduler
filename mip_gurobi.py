@@ -167,7 +167,7 @@ def main(argv, mpp_start):
     cost_output_file = ""
     threads = 1
     equality = False
-    help_message = 'backtrack_search.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
+    help_message = 'mip_gurobi.py -i <problem file> -I <perturbed problem file> -s <original solution file> ' \
                    '-O <perturbed solution outputfile> -c <cost outputfile> -t <time limit> -g <any>'
     try:
         opts, args = getopt.getopt(argv, "hi:I:s:O:c:t:g", ["ifile=", "Ifile=", "sfile=", "Ofile=", "cost=", "time=", "equality="])
@@ -261,7 +261,7 @@ def main(argv, mpp_start):
 if __name__ == '__main__':
     mpp_start = time.perf_counter()
 
-    #message = "backtrack_search.py -i benchmarks/original_v4_c64_tw16_xy16_0.txt -I benchmarks/perturbated4_v4_c64_tw16_xy16_0.txt " \
+    #message = "mip_gurobi.py -i benchmarks/original_v4_c64_tw16_xy16_0.txt -I benchmarks/perturbated4_v4_c64_tw16_xy16_0.txt " \
     #          "-s benchmarks/solution_v4_c64_tw16_xy16_0.txt -O perturbed_opt_solution.txt -c opt_cost.txt -t 180"
     
     #main(message.split()[1:])
