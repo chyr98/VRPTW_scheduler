@@ -250,11 +250,11 @@ The file contains a list of mehtods.
   },
   {
     "name": "Gurobi1",
-    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost} -g"
+    "cmd": "python3.7 mip_gurobi.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost} -g"
   },
   {
     "name": "Gurobi2",
-    "cmd": "python3.7 backtrack_search.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost}"
+    "cmd": "python3.7 mip_gurobi.py -i {original_problem} -I {perturbated_problem} -s {original_solution} -O {output} -c {cost}"
   }
 ]
 ```
