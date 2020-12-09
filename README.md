@@ -162,7 +162,7 @@ python3 run_mip.py \
 ### Run the Code
 
 ```bash
-python3 backtrack_search.py \
+python3 mip_gurobi.py \
   -i <problem file> \
   -I <perturbed problem file> \
   -s <original solution file> \
