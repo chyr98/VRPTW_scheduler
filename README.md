@@ -242,11 +242,11 @@ The file contains a list of mehtods.
   },
   {
     "name": "CPLEX1",
-    "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost}"
+    "cmd": "python3.7 mip_cplex.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost}"
   },
   {
     "name": "CPLEX2",
-    "cmd": "python3.7 run_mip.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --use-Jasper-model"
+    "cmd": "python3.7 mip_cplex.py --original-problem {original_problem} --perturbated-problem {perturbated_problem} --original-solution {original_solution} --output {output} --cost {cost} --use-Jasper-model"
   },
   {
     "name": "Gurobi1",
