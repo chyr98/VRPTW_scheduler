@@ -134,14 +134,14 @@ total cost: 34.17
 #### Run the Code
 
 ```bash
-python3 run_mip.py \
+python3 mip_cplex.py \
   --original-problem problem1.txt \
   --original-solution solution1.json \
   --perturbated-problem problem2.txt \
   --output solution2.json \
   --cost cost.json \
   --thread 1 \
-  --use-Jasper-model 0
+  --use-inequality-model 0
 ```
 
 - `--original-problem`: the path to the file that stores the original VRPTW problem
@@ -150,7 +150,7 @@ python3 run_mip.py \
 - `--output`: the path of the output file that stores the solution of MPP
 - `--cost`: the path of the output file that stores the set of costs at different time steps.
 - `--threads`: the number of threads (default: 1)
-- `--use-Jasper-model`: use the equality constraints (model1) if 0 and ineqality constraints (model2) if 1 (default: 1)
+- `--use-inequality-model`: use the equality constraints (model1) if 0 and inequality constraints (model2) if 1 (default: 1)
 
 ### MIP Models Using Gurobi
 

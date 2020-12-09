@@ -273,8 +273,8 @@ if __name__ == "__main__":
     parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--cost', type=str, required=True)
     parser.add_argument('--threads', type=int, default=1)
-    parser.add_argument('--use-Jasper-model', type=int, default=1)
+    parser.add_argument('--use-inequality-model', type=int, default=1)
 
     args = parser.parse_args()
 
-    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost, args.threads, args.use_Jasper_model)
+    solve_one_problem(args.original_problem, args.original_solution, args.perturbated_problem, args.output, args.cost, args.threads, args.use_inequality_model)
